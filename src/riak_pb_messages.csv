@@ -48,6 +48,9 @@
 81,DtFetchResp,riak_dt
 82,DtUpdateReq,riak_dt
 83,DtUpdateResp,riak_dt
+94,FpbIncrementReq,floppy
+95,FpbDecrementReq,floppy
+96,FpbOperationResp,floppy
 253,RpbAuthReq,riak
 254,RpbAuthResp,riak
 255,RpbStartTls,riak

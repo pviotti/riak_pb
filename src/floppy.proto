@@ -1,0 +1,36 @@
+// Java package specifiers
+option java_package = "com.basho.riak.protobuf";
+option java_outer_classname = "FloppyPB";
+
+
+// Counter increment requenst
+message FpbIncrementReq {
+    required bytes key = 1;
+    required uint32 amount = 2;
+}
+
+// Counter increment requenst
+message FpbDecrementReq {
+    required bytes key = 1;
+    required uint32 amount = 2;
+}
+
+// Get counter request
+message FpbGetCounterReq {
+    required bytes key = 1;
+}
+
+// Response operation
+message FpbGetCounterResp {
+    required sint32 value = 1;
+}
+
+// Response operation
+message FpbOperationResp {
+    required bool success = 1;
+}
+
+
+
+
+
