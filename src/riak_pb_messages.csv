@@ -53,6 +53,9 @@
 96,FpbOperationResp,floppy
 97,FpbGetCounterReq,floppy
 98,FpbGetCounterResp,floppy
+99,FpbSetUpdateReq,floppy
+100,FpbGetSetReq,floppy
+101,FpbGetSetResp,floppy
 253,RpbAuthReq,riak
 254,RpbAuthResp,riak
 255,RpbStartTls,riak
