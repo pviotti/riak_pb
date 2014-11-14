@@ -1,6 +1,6 @@
 // Java package specifiers
 option java_package = "com.basho.riak.protobuf";
-option java_outer_classname = "FloppyPB";
+option java_outer_classname = "AntidotePB";
 
 
 // Counter increment requenst
