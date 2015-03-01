@@ -1,7 +1,7 @@
 {application, riak_pb,
  [
   {description, "Riak Protocol Buffers Messages"},
-  {vsn, "2.0.0.17p1"},
+  {vsn, git},
   {registered, []},
   {applications, [
                   kernel,
