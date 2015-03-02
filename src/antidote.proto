@@ -59,17 +59,15 @@ message FpbAtomicUpdateTxnOp {
 //Atomic update transaction
 //@todo: Encode clock
 message FpbAtomicUpdateTxnReq {
-	//@todo clock is int temporarily.. fix it
-	required sint32 clock = 1;
+	optional bytes clock = 1;
 	repeated FpbAtomicUpdateTxnOp ops = 2;
-	//repeated sint32 ops = 2;
 }
 
 //Response for a transaction
 message FpbAtomicUpdateTxnResp {
-	required bool success = 1;
-	//@toso committime is not integer.. temp for testing 
-	required sint32 committime = 3;
+	required bool success = 1; 
+	//If transaction failed clock will be empty
+	optional bytes clock = 2;
 }
 
 //Operation possible inside atomic update transaction
@@ -78,11 +76,9 @@ message FpbSnapshotReadTxnOp {
 	optional FpbGetSetReq set = 2;	
 }
 
-//Atomic update transaction
-//@todo: Encode clock
+//Snapshot Read transaction
 message FpbSnapshotReadTxnReq {
-	//@todo clock is int temporarily.. fix it
-	required sint32 clock = 1;
+	optional bytes clock = 1;
 	repeated FpbSnapshotReadTxnOp ops = 2;
 }
 
@@ -94,6 +90,7 @@ message FpbSnapshotReadTxnRespValue {
 }
 message FpbSnapshotReadTxnResp {
 	required bool success = 1;
-	repeated FpbSnapshotReadTxnRespValue results = 2;
+	optional bytes clock = 2;
+	repeated FpbSnapshotReadTxnRespValue results = 3;
 }
 
