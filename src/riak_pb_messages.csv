@@ -31,8 +31,6 @@
 30,RpbResetBucketResp,riak
 31,RpbGetBucketTypeReq,riak
 32,RpbSetBucketTypeReq,riak
-33,RpbGetBucketKeyPreflistReq,riak_kv
-34,RpbGetBucketKeyPreflistResp,riak_kv
 40,RpbCSBucketReq,riak_kv
 41,RpbCSBucketResp,riak_kv
 50,RpbCounterUpdateReq,riak_kv
@@ -58,6 +56,13 @@
 99,FpbSetUpdateReq,antidote
 100,FpbGetSetReq,antidote
 101,FpbGetSetResp,antidote
+102,FpbAtomicUpdateTxnReq,antidote
+103,FpbAtomicUpdateTxnOps,antidote
+104,FpbAtomicUpdateTxnResp,antidote
+105,FpbSnapshotReadTxnReq,antidote
+106,FpbSnapshotReadTxnOp,antidote
+107,FpbSnapshotReadTxnRespValue,antidote
+108,FpbSnapshotReadTxnResp,antidote
 253,RpbAuthReq,riak
 254,RpbAuthResp,riak
 255,RpbStartTls,riak

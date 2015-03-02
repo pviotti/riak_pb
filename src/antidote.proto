@@ -49,8 +49,51 @@ message FpbGetSetResp {
 }
 
 
+//Operation possible inside atomic update transaction
+message FpbAtomicUpdateTxnOp {
+	optional FpbIncrementReq counterinc = 1;
+	optional FpbDecrementReq counterdec = 2;	
+	optional FpbSetUpdateReq setupdate = 3;
+}
 
+//Atomic update transaction
+//@todo: Encode clock
+message FpbAtomicUpdateTxnReq {
+	//@todo clock is int temporarily.. fix it
+	required sint32 clock = 1;
+	repeated FpbAtomicUpdateTxnOp ops = 2;
+	//repeated sint32 ops = 2;
+}
 
+//Response for a transaction
+message FpbAtomicUpdateTxnResp {
+	required bool success = 1;
+	//@toso committime is not integer.. temp for testing 
+	required sint32 committime = 3;
+}
 
+//Operation possible inside atomic update transaction
+message FpbSnapshotReadTxnOp {
+	optional FpbGetCounterReq counter = 1;
+	optional FpbGetSetReq set = 2;	
+}
 
+//Atomic update transaction
+//@todo: Encode clock
+message FpbSnapshotReadTxnReq {
+	//@todo clock is int temporarily.. fix it
+	required sint32 clock = 1;
+	repeated FpbSnapshotReadTxnOp ops = 2;
+}
+
+//Response for a transaction
+message FpbSnapshotReadTxnRespValue {
+	required bytes key = 1;
+	optional FpbGetCounterResp counter = 2;
+	optional FpbGetSetResp set = 3;
+}
+message FpbSnapshotReadTxnResp {
+	required bool success = 1;
+	repeated FpbSnapshotReadTxnRespValue results = 2;
+}
 
