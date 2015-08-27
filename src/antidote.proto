@@ -4,6 +4,111 @@ option java_outer_classname = "AntidotePB";
 
 
 // Counter increment requenst
+message ApbCounterUpdate {
+	required uint32 optype = 1;
+    optional uint32 inc = 2;
+    optional uint32 dec = 3;
+}
+
+// Response operation
+message ApbGetCounterResp {
+    required sint32 value = 1;
+}
+
+// Response operation
+message ApbOperationResp {
+    required bool success = 1;
+    optional sint32 reason = 2;
+}
+
+// Set updates request
+message ApbSetUpdate {
+    repeated bytes adds = 2;
+    repeated bytes rems = 3;
+}
+
+// Get set request
+message ApbGetSetResp {
+    required bytes value = 1;
+}
+
+//--------------------------------------------------------------
+
+// Properties parameters of a transaction
+message ApbTxnProperties {
+	optional uint32 read_write = 1 ; //default = 0 = read_write, 1 = read_only, 2 = write_only
+	optional uint32 red_blue = 2 ; // default = 0 = blue, 1 = red
+}
+
+// Object (Key) representation
+message ApbBoundObject {
+  required bytes key = 1;
+  required bytes type = 2;
+  required bytes bucket = 3;
+}
+
+// Objects to be read
+message ApbReadObjects {
+	repeated ApbBoundObject boundobjects = 1;
+	required bytes transaction_descriptor = 2;
+}
+
+// An Object to be updated with specified operation
+message ApbUpdateOp {
+	required ApbBoundObject boundobject = 1;
+	required uint32 optype = 2; // Identifies which type update, 1=counter, 2=set
+	optional ApbCounterUpdate counterop = 3;
+	optional ApbSetUpdate setop = 4;
+	// Add mode CRDTs here
+}
+
+// Objects to be updated
+message ApbUpdateObjects {
+	repeated ApbUpdateOp updates = 1;
+	required bytes transaction_descriptor = 2;
+}
+
+// Start Transaction
+message ApbStartTransaction {
+	required bytes timestamp = 1;
+	optional ApbTxnProperties properties = 2;
+}
+
+// Abort Transaction
+message ApbAbortTransaction {
+	required bytes transaction_descriptor = 1;
+}
+
+// Commit Transaction
+message ApbCommitTransaction {
+	required bytes transaction_descriptor = 1;
+}
+
+
+//Start transaction response
+message ApbStartTransactionResp {
+	required bool success = 1;
+	optional bytes transaction_descriptor = 2;
+}
+
+//Read Objects Response
+message ApbReadObjectResp {
+  	optional ApbGetCounterResp counter = 1;
+	optional ApbGetSetResp set = 2;
+}
+message ApbReadObjectsResp {
+	required bool success = 1;
+	repeated ApbReadObjectResp objects = 2;
+}
+
+// Commit Response
+message ApbCommitResp {
+	required bool success = 1;
+	optional bytes commit_time = 2;
+}
+
+// OLD -- TO BE REMOVED
+// Counter increment requenst
 message FpbIncrementReq {
     required bytes key = 1;
     required uint32 amount = 2;
@@ -73,7 +178,7 @@ message FpbAtomicUpdateTxnResp {
 //Operation possible inside atomic update transaction
 message FpbSnapshotReadTxnOp {
 	optional FpbGetCounterReq counter = 1;
-	optional FpbGetSetReq set = 2;	
+	optional FpbGetSetReq set = 2;	  
 }
 
 //Snapshot Read transaction
@@ -93,4 +198,3 @@ message FpbSnapshotReadTxnResp {
 	optional bytes clock = 2;
 	repeated FpbSnapshotReadTxnRespValue results = 3;
 }
-
