@@ -66,7 +66,7 @@ encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
                      #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
         riak_dt_gcounter -> EncUp = encode(counter_update, {Op, Param}),
                          #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp}
-        
+
     end;
 
 encode(bound_object, {Key, Type, Bucket}) ->
@@ -83,6 +83,23 @@ encode(counter_update, {increment, Amount}) ->
 
 encode(counter_update, {decrement, Amount}) ->
     #apbcounterupdate{optype = 2, dec=Amount};
+
+encode(set_update, {add, Elem}) ->
+    #apbsetupdate{optype = 1, adds = [term_to_binary(Elem)]};
+encode(set_update, {add_all, Elems}) ->
+    BinElems = lists:map(fun(Elem) ->
+                                term_to_binary(Elem)
+                        end,
+                        Elems),
+    #apbsetupdate{optype = 2, adds = BinElems};
+encode(set_update, {remove, Elem}) ->
+    #apbsetupdate{optype = 3, rems = [term_to_binary(Elem)]};
+encode(set_update, {remove_all, Elems}) ->
+    BinElems = lists:map(fun(Elem) ->
+                                term_to_binary(Elem)
+                        end,
+                        Elems),
+    #apbsetupdate{optype = 4, rems = BinElems};
 
 encode(read_objects, {Objects, TxId}) ->
     BoundObjects = lists:map(fun(Object) ->
@@ -161,6 +178,27 @@ decode(counter_update, #apbcounterupdate{optype = Op, inc = I, dec = D}) ->
         2 -> {decrement, D}
     end;
 
+decode(set_update, #apbsetupdate{optype = Op, adds = A, rems = R}) ->
+    case Op of
+        1 ->
+            case A of
+                [Elem] -> {add, binary_to_term(Elem)}
+            end;
+        2 -> DecElem = lists:map(fun(Elem) ->
+                                         binary_to_term(Elem)
+                                 end,
+                                 A),
+             {add_all, DecElem};
+        3-> case R of
+                [Elem] -> {remove, binary_to_term(Elem)}
+            end;
+        4 -> DecElem = lists:map(fun(Elem) ->
+                                         binary_to_term(Elem)
+                                 end,
+                                 R),
+             {remove_all, DecElem}
+    end;
+
 decode(_Other, _) ->
     erlang:error("Unknown message").
 
@@ -196,7 +234,7 @@ decode_response(Other) ->
 
 -ifdef(TEST).
 
-%% Tests protocol buffer functions. Uses riak_pb/antidote_pb_codec.erl
+%% Tests encode and decode
 start_transaction_test() ->
     Clock = term_to_binary(ignore),
     Properties = {},
@@ -232,7 +270,7 @@ read_transaction_test() ->
     ?assertMatch({error, unknown},
                  antidote_pb_codec:decode_response(ErrMsg)),
 
-    %% Test encoding results    
+    %% Test encoding results
     Results = [1, [2]],
     ResEnc = antidote_pb_codec:encode(read_objects_response,
                                       {ok, lists:zip(Objects, Results)}
@@ -245,9 +283,10 @@ read_transaction_test() ->
 update_types_test() ->
     Updates = [ {{<<"1">>, riak_dt_pncounter, <<"2">>}, increment , 1},
                 {{<<"2">>, riak_dt_gcounter, <<"2">>}, increment , 1},
-                %{{<<"a">>, riak_dt_orset, <<"2">>}, add , "a"},
-                {{<<"b">>, crdt_pncounter, <<"2">>}, increment , 2}
-                %{{<<"c">>, crdt_orset, <<"2">>}, add, "b"}
+                {{<<"a">>, riak_dt_orset, <<"2">>}, add , 3},
+                {{<<"b">>, crdt_pncounter, <<"2">>}, increment , 2},
+                {{<<"c">>, crdt_orset, <<"2">>}, add, 4},
+                {{<<"a">>, riak_dt_orset, <<"2">>}, add_all , [5,6]}
               ],
     TxId = term_to_binary({12}),
          %% Dummy value, structure of TxId is opaque to client
