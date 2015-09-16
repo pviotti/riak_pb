@@ -191,3 +191,96 @@ decode_response(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
 
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
+
+
+
+-ifdef(TEST).
+
+%% Tests protocol buffer functions. Uses riak_pb/antidote_pb_codec.erl
+start_transaction_test() ->
+    Clock = term_to_binary(ignore),
+    Properties = {},
+    EncRecord = antidote_pb_codec:encode(start_transaction,
+                                         {Clock, Properties}),
+    [MsgCode, MsgData] = riak_pb_codec:encode(EncRecord),
+    Msg = riak_pb_codec:decode(MsgCode, list_to_binary(MsgData)),
+    ?assertMatch(true, is_record(Msg,apbstarttransaction)),
+    ?assertMatch(ignore, binary_to_term(Msg#apbstarttransaction.timestamp)),
+    ?assertMatch(Properties,
+                 antidote_pb_codec:decode(txn_properties,
+                                          Msg#apbstarttransaction.properties)).
+
+read_transaction_test() ->
+    Objects = [{<<"key1">>, riak_dt_pncounter, <<"bucket1">>},
+               {<<"key2">>, riak_dt_orset, <<"bucket2">>}],
+    TxId = term_to_binary({12}),
+         %% Dummy value, structure of TxId is opaque to client
+    EncRecord = antidote_pb_codec:encode(read_objects, {Objects, TxId}),
+    ?assertMatch(true, is_record(EncRecord, apbreadobjects)),
+    [MsgCode, MsgData] = riak_pb_codec:encode(EncRecord),
+    Msg = riak_pb_codec:decode(MsgCode, list_to_binary(MsgData)),
+    ?assertMatch(true, is_record(Msg, apbreadobjects)),
+    DecObjects = lists:map(fun(O) ->
+                                antidote_pb_codec:decode(bound_object, O) end,
+                           Msg#apbreadobjects.boundobjects),
+    ?assertMatch(Objects, DecObjects),
+    %% Test encoding error
+    ErrEnc = antidote_pb_codec:encode(read_objects_response,
+                                      {error, someerror}),
+    [ErrMsgCode,ErrMsgData] = riak_pb_codec:encode(ErrEnc),
+    ErrMsg = riak_pb_codec:decode(ErrMsgCode,list_to_binary(ErrMsgData)),
+    ?assertMatch({error, unknown},
+                 antidote_pb_codec:decode_response(ErrMsg)),
+
+    %% Test encoding results    
+    Results = [1, [2]],
+    ResEnc = antidote_pb_codec:encode(read_objects_response,
+                                      {ok, lists:zip(Objects, Results)}
+                                     ),
+    [ResMsgCode, ResMsgData] = riak_pb_codec:encode(ResEnc),
+    ResMsg = riak_pb_codec:decode(ResMsgCode, list_to_binary(ResMsgData)),
+    ?assertMatch({read_objects, [1, [2]]},
+                 antidote_pb_codec:decode_response(ResMsg)).
+
+update_types_test() ->
+    Updates = [ {{<<"1">>, riak_dt_pncounter, <<"2">>}, increment , 1},
+                {{<<"2">>, riak_dt_gcounter, <<"2">>}, increment , 1},
+                %{{<<"a">>, riak_dt_orset, <<"2">>}, add , "a"},
+                {{<<"b">>, crdt_pncounter, <<"2">>}, increment , 2}
+                %{{<<"c">>, crdt_orset, <<"2">>}, add, "b"}
+              ],
+    TxId = term_to_binary({12}),
+         %% Dummy value, structure of TxId is opaque to client
+    EncRecord = antidote_pb_codec:encode(update_objects, {Updates, TxId}),
+    ?assertMatch(true, is_record(EncRecord, apbupdateobjects)),
+    [MsgCode, MsgData] = riak_pb_codec:encode(EncRecord),
+    Msg = riak_pb_codec:decode(MsgCode, list_to_binary(MsgData)),
+    ?assertMatch(true, is_record(Msg, apbupdateobjects)),
+    DecUpdates = lists:map(fun(O) ->
+                                antidote_pb_codec:decode(update_object, O) end,
+                        Msg#apbupdateobjects.updates),
+    ?assertMatch(Updates, DecUpdates).
+
+error_messages_test() ->
+    EncRecord1 = antidote_pb_codec:encode(start_transaction_response,
+                                          {error, someerror}),
+    [MsgCode1, MsgData1] = riak_pb_codec:encode(EncRecord1),
+    Msg1 = riak_pb_codec:decode(MsgCode1, list_to_binary(MsgData1)),
+    Resp1 = antidote_pb_codec:decode_response(Msg1),
+    ?assertMatch(Resp1, {error, unknown}),
+
+    EncRecord2 = antidote_pb_codec:encode(operation_response,
+                                          {error, someerror}),
+    [MsgCode2, MsgData2] = riak_pb_codec:encode(EncRecord2),
+    Msg2 = riak_pb_codec:decode(MsgCode2, list_to_binary(MsgData2)),
+    Resp2 = antidote_pb_codec:decode_response(Msg2),
+    ?assertMatch(Resp2, {error, unknown}),
+
+    EncRecord3 = antidote_pb_codec:encode(read_objects_response,
+                                          {error, someerror}),
+    [MsgCode3, MsgData3] = riak_pb_codec:encode(EncRecord3),
+    Msg3 = riak_pb_codec:decode(MsgCode3, list_to_binary(MsgData3)),
+    Resp3 = antidote_pb_codec:decode_response(Msg3),
+    ?assertMatch(Resp3, {error, unknown}).
+
+-endif.
