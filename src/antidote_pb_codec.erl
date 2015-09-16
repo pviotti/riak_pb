@@ -90,26 +90,26 @@ encode(read_objects, {Objects, TxId}) ->
                              Objects),
     #apbreadobjects{boundobjects = BoundObjects, transaction_descriptor = TxId};
 
-encode(start_transaction_response, {error, _Reason}) ->
-    #apbstarttransactionresp{success=false};
+encode(start_transaction_response, {error, Reason}) ->
+    #apbstarttransactionresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(start_transaction_response, {ok, TxId}) ->
     #apbstarttransactionresp{success=true, transaction_descriptor=term_to_binary(TxId)};
 
-encode(operation_response, {error, _Reason}) ->
-    #apboperationresp{success=false};
+encode(operation_response, {error, Reason}) ->
+    #apboperationresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(operation_response, ok) ->
     #apboperationresp{success=true};
 
-encode(commit_response, {error, _Reason}) ->
-    #apbcommitresp{success=false};
+encode(commit_response, {error, Reason}) ->
+    #apbcommitresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(commit_response, {ok, CommitTime}) ->
     #apbcommitresp{success=true, commit_time= term_to_binary(CommitTime)};
 
-encode(read_objects_response, {error, _Reason}) ->
-    #apbreadobjectsresp{success=false};
+encode(read_objects_response, {error, Reason}) ->
+    #apbreadobjectsresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(read_objects_response, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
@@ -126,6 +126,11 @@ encode(read_object_resp, {{_Key, riak_dt_gcounter, _Bucket}, Val}) ->
 encode(read_object_resp, {{_Key, riak_dt_orset, _Bucket}, Val}) ->
     #apbreadobjectresp{set=#apbgetsetresp{value=term_to_binary(Val)}};
 
+%% Add new error codes
+encode(error_code, unknown) -> 0;
+encode(error_code, timeout) -> 1;
+encode(error_code, _Other) -> 0;
+
 encode(_Other, _) ->
     erlang:error("Incorrect operation/Not yet implemented").
 
@@ -139,6 +144,8 @@ decode(type, 1) -> riak_dt_gcounter;
 decode(type, 2) -> riak_dt_orset;
 decode(type, 3) -> crdt_pncounter;
 decode(type, 4) -> crdt_orset;
+decode(error_code, 0) -> unknown;
+decode(error_code, 1) -> timeout;
 
 decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp}) ->
     {Op, OpParam} = case OpType of
@@ -159,19 +166,19 @@ decode(_Other, _) ->
 
 decode_response(#apboperationresp{success = true}) ->
     {opresponse, ok};
-decode_response(#apboperationresp{success = false, reason = Reason})->
-    {error, Reason};
+decode_response(#apboperationresp{success = false, errorcode = Reason})->
+    {error, decode(error_code, Reason)};
 decode_response(#apbstarttransactionresp{success=true,
                                          transaction_descriptor = TxId}) ->
     {start_transaction, TxId};
-decode_response(#apbstarttransactionresp{success=false}) ->
-    error;
+decode_response(#apbstarttransactionresp{success=false, errorcode = Reason}) ->
+    {error, decode(error_code, Reason)};
 decode_response(#apbcommitresp{success=true, commit_time = TimeStamp}) ->
     {commit_transaction, TimeStamp};
-decode_response(#apbcommitresp{success=false}) ->
-    error;
-decode_response(#apbreadobjectsresp{success=false}) ->
-    {error, unknown};
+decode_response(#apbcommitresp{success=false, errorcode = Reason}) ->
+    {error, decode(error_code, Reason)};
+decode_response(#apbreadobjectsresp{success=false, errorcode=Reason}) ->
+    {error, decode(error_code, Reason)};
 decode_response(#apbreadobjectsresp{success=true, objects = Objects}) ->
     Resps = lists:map(fun(O) ->
                               decode_response(O) end,
@@ -181,5 +188,6 @@ decode_response(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) -
     Val;
 decode_response(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
     erlang:binary_to_term(Val);
+
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).

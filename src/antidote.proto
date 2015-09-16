@@ -18,7 +18,7 @@ message ApbGetCounterResp {
 // Response operation
 message ApbOperationResp {
     required bool success = 1;
-    optional sint32 reason = 2;
+    optional uint32 errorcode = 2;
 }
 
 // Set updates request
@@ -89,6 +89,7 @@ message ApbCommitTransaction {
 message ApbStartTransactionResp {
 	required bool success = 1;
 	optional bytes transaction_descriptor = 2;
+	optional uint32 errorcode = 3;
 }
 
 //Read Objects Response
@@ -99,12 +100,14 @@ message ApbReadObjectResp {
 message ApbReadObjectsResp {
 	required bool success = 1;
 	repeated ApbReadObjectResp objects = 2;
+	optional uint32 errorcode = 3;
 }
 
 // Commit Response
 message ApbCommitResp {
 	required bool success = 1;
 	optional bytes commit_time = 2;
+	optional uint32 errorcode = 3;
 }
 
 // OLD -- TO BE REMOVED
