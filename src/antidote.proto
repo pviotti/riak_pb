@@ -43,7 +43,7 @@ message ApbTxnProperties {
 // Object (Key) representation
 message ApbBoundObject {
   required bytes key = 1;
-  required bytes type = 2;
+  required uint32 type = 2;
   required bytes bucket = 3;
 }
 

@@ -1,7 +1,30 @@
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2014 SyncFree Consortium.  All Rights Reserved.
+%%
+%% This file is provided to you under the Apache License,
+%% Version 2.0 (the "License"); you may not use this file
+%% except in compliance with the License.  You may obtain
+%% a copy of the License at
+%%
+%%   http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing,
+%% software distributed under the License is distributed on an
+%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+%% KIND, either express or implied.  See the License for the
+%% specific language governing permissions and limitations
+%% under the License.
+%%
+%% -------------------------------------------------------------------
 -module(antidote_pb_codec).
 
 -include("riak_pb.hrl").
 -include("antidote_pb.hrl").
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 -export([encode/2,
          decode/2,
@@ -30,17 +53,30 @@ encode(update_objects, {Updates, TxId}) ->
                           Updates),
    #apbupdateobjects{ updates = EncUpdates, transaction_descriptor = TxId};
 
-encode(update_op, {Object={_Key, Type, _Bucket}, {Op,Param}}) ->
+encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
     EncObject = encode(bound_object, Object),
     case Type of
-        riak_dt_pncounter -> EncUp = encode(counter_update, {Op, Param}),                
-                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp}; 
+        riak_dt_pncounter -> EncUp = encode(counter_update, {Op, Param}),
+                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
         riak_dt_orset -> SetUp = encode(set_update, {Op, Param}),
-                     #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp}
+                         #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
+        crdt_pncounter -> EncUp = encode(counter_update, {Op, Param}),
+                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
+        crdt_orset -> SetUp = encode(set_update, {Op, Param}),
+                     #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
+        riak_dt_gcounter -> EncUp = encode(counter_update, {Op, Param}),
+                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp}
+        
     end;
 
 encode(bound_object, {Key, Type, Bucket}) ->
-    #apbboundobject{key=Key, type=term_to_binary(Type), bucket=Bucket};
+    #apbboundobject{key=Key, type=encode(type,Type), bucket=Bucket};
+
+encode(type, riak_dt_pncounter) -> 0;
+encode(type, riak_dt_gcounter) -> 1;
+encode(type, riak_dt_orset) -> 2;
+encode(type, crdt_pncounter) -> 3;
+encode(type, crdt_orset) -> 4;
 
 encode(counter_update, {increment, Amount}) ->
     #apbcounterupdate{optype = 1, inc = Amount};
@@ -96,9 +132,16 @@ encode(_Other, _) ->
 decode(txn_properties, _Properties) ->
     {};
 decode(bound_object, #apbboundobject{key = Key, type=Type, bucket=Bucket}) ->
-    {Key, binary_to_term(Type), Bucket};
+    {Key, decode(type, Type), Bucket};
+
+decode(type, 0) -> riak_dt_pncounter;
+decode(type, 1) -> riak_dt_gcounter;
+decode(type, 2) -> riak_dt_orset;
+decode(type, 3) -> crdt_pncounter;
+decode(type, 4) -> crdt_orset;
+
 decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp}) ->
-    {Op, OpParam} = case OpType of 
+    {Op, OpParam} = case OpType of
                  1 ->
                      decode(counter_update, CounterOp);
                  2 ->
@@ -113,7 +156,7 @@ decode(counter_update, #apbcounterupdate{optype = Op, inc = I, dec = D}) ->
 
 decode(_Other, _) ->
     erlang:error("Unknown message").
-             
+
 decode_response(#apboperationresp{success = true}) ->
     {opresponse, ok};
 decode_response(#apboperationresp{success = false, reason = Reason})->
@@ -127,6 +170,8 @@ decode_response(#apbcommitresp{success=true, commit_time = TimeStamp}) ->
     {commit_transaction, TimeStamp};
 decode_response(#apbcommitresp{success=false}) ->
     error;
+decode_response(#apbreadobjectsresp{success=false}) ->
+    {error, unknown};
 decode_response(#apbreadobjectsresp{success=true, objects = Objects}) ->
     Resps = lists:map(fun(O) ->
                               decode_response(O) end,
@@ -138,5 +183,3 @@ decode_response(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
     erlang:binary_to_term(Val);
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
-
-
