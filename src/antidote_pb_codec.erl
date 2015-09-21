@@ -223,9 +223,9 @@ decode_response(#apbreadobjectsresp{success=true, objects = Objects}) ->
                       Objects),
     {read_objects, Resps};
 decode_response(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) ->
-    Val;
+    {counter, Val};
 decode_response(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
-    erlang:binary_to_term(Val);
+    {set, erlang:binary_to_term(Val)};
 
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
@@ -277,7 +277,7 @@ read_transaction_test() ->
                                      ),
     [ResMsgCode, ResMsgData] = riak_pb_codec:encode(ResEnc),
     ResMsg = riak_pb_codec:decode(ResMsgCode, list_to_binary(ResMsgData)),
-    ?assertMatch({read_objects, [1, [2]]},
+    ?assertMatch({read_objects, [{counter, 1}, {set, [2]}]},
                  antidote_pb_codec:decode_response(ResMsg)).
 
 update_types_test() ->
