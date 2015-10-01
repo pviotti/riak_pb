@@ -87,6 +87,16 @@ message ApbCommitTransaction {
 }
 
 
+message ApbStaticUpdateObjects{
+	required ApbStartTransaction transaction = 1;
+	repeated ApbUpdateOp updates = 2;
+}
+
+message ApbStaticReadObjects{
+	required ApbStartTransaction transaction = 1;
+	repeated ApbBoundObject objects = 2;
+}
+
 //Start transaction response
 message ApbStartTransactionResp {
         required bool success = 1;
@@ -110,4 +120,9 @@ message ApbCommitResp {
         required bool success = 1;
         optional bytes commit_time = 2;
         optional uint32 errorcode = 3;
+}
+
+message ApbStaticReadObjectsResp {
+	required ApbReadObjectsResp objects = 1;
+	required ApbCommitResp committime = 2;
 }

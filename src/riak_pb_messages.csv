@@ -61,10 +61,13 @@
 119,ApbStartTransaction,antidote
 120,ApbAbortTransaction,antidote
 121,ApbCommitTransaction,antidote
-122,ApbStartTransactionResp,antidote
-123,ApbReadObjectResp,antidote
-124,ApbReadObjectsResp,antidote
-125,ApbCommitResp,antidote
+122,ApbStaticUpdateObjects,antidote
+123,ApbStaticReadObjects,antidote
+124,ApbStartTransactionResp,antidote
+125,ApbReadObjectResp,antidote
+126,ApbReadObjectsResp,antidote
+127,ApbCommitResp,antidote
+128,ApbStaticReadObjectsResp,antidote
 253,RpbAuthReq,riak
 254,RpbAuthResp,riak
 255,RpbStartTls,riak

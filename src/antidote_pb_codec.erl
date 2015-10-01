@@ -69,6 +69,14 @@ encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
 
     end;
 
+encode(static_update_objects, {Clock, Properties, Updates}) ->
+    EncTransaction = encode(start_transaction, {Clock, Properties}),
+    EncUpdates = lists:map(fun(Update) ->
+                                  encode(update_op, Update) end,
+                          Updates),
+    #apbstaticupdateobjects{transaction = EncTransaction,
+                            updates = EncUpdates};
+
 encode(bound_object, {Key, Type, Bucket}) ->
     #apbboundobject{key=Key, type=encode(type,Type), bucket=Bucket};
 
@@ -107,6 +115,15 @@ encode(read_objects, {Objects, TxId}) ->
                              Objects),
     #apbreadobjects{boundobjects = BoundObjects, transaction_descriptor = TxId};
 
+
+encode(static_read_objects, {Clock, Properties, Objects}) ->
+    EncTransaction = encode(start_transaction, {Clock, Properties}),
+    EncObjects = lists:map(fun(Object) ->
+                                     encode(bound_object, Object) end,
+                             Objects),
+    #apbstaticreadobjects{transaction = EncTransaction,
+                          objects = EncObjects};
+
 encode(start_transaction_response, {error, Reason}) ->
     #apbstarttransactionresp{success=false, errorcode = encode(error_code, Reason)};
 
@@ -142,6 +159,11 @@ encode(read_object_resp, {{_Key, riak_dt_gcounter, _Bucket}, Val}) ->
 
 encode(read_object_resp, {{_Key, riak_dt_orset, _Bucket}, Val}) ->
     #apbreadobjectresp{set=#apbgetsetresp{value=term_to_binary(Val)}};
+
+encode(static_read_objects_response, {ok, Results, CommitTime}) ->
+    #apbstaticreadobjectsresp{
+       objects = encode(read_objects_response, {ok, Results}),
+       committime = encode(commit_response, {ok, CommitTime})};
 
 %% Add new error codes
 encode(error_code, unknown) -> 0;
@@ -226,7 +248,11 @@ decode_response(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) -
     {counter, Val};
 decode_response(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
     {set, erlang:binary_to_term(Val)};
-
+decode_response(#apbstaticreadobjectsresp{objects = Objects,
+                                          committime = CommitTime}) ->
+    {read_objects, Values} = decode_response(Objects),
+    {commit_transaction, TimeStamp} = decode_response(CommitTime),
+    {static_read_objects_resp, Values, TimeStamp};
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
 
