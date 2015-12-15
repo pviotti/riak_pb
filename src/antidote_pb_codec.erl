@@ -159,7 +159,7 @@ encode(read_objects_response, {ok, Results}) ->
     #apbreadobjectsresp{success=true, objects = EncResults};
 
 encode(read_object_resp, {{_Key, riak_dt_lwwreg, _Bucket}, Val}) ->
-    #apbreadobjectresp{reg=#apbgetregresp{value=Val}};
+    #apbreadobjectresp{reg=#apbgetregresp{value=term_to_binary(Val)}};
 
 encode(read_object_resp, {{_Key, riak_dt_pncounter, _Bucket}, Val}) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
@@ -264,6 +264,8 @@ decode_response(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) -
     {counter, Val};
 decode_response(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
     {set, erlang:binary_to_term(Val)};
+decode_response(#apbreadobjectresp{reg = #apbgetregresp{value = Val}}) ->
+    {reg, erlang:binary_to_term(Val)};
 decode_response(#apbstaticreadobjectsresp{objects = Objects,
                                           committime = CommitTime}) ->
     {read_objects, Values} = decode_response(Objects),
