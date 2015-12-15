@@ -65,7 +65,9 @@ encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
         crdt_orset -> SetUp = encode(set_update, {Op, Param}),
                      #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
         riak_dt_gcounter -> EncUp = encode(counter_update, {Op, Param}),
-                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp}
+                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
+        riak_dt_lwwreg -> EncUp = encode(reg_update, {Op, Param}),
+                         #apbupdateop{boundobject=EncObject, optype = 3, regop = EncUp}
 
     end;
 
@@ -85,6 +87,10 @@ encode(type, riak_dt_gcounter) -> 1;
 encode(type, riak_dt_orset) -> 2;
 encode(type, crdt_pncounter) -> 3;
 encode(type, crdt_orset) -> 4;
+encode(type, riak_dt_lwwreg) -> 5;
+
+encode(reg_update, {assign, Value}) ->
+    #apbregupdate{optype = 1, value=Value};
 
 encode(counter_update, {increment, Amount}) ->
     #apbcounterupdate{optype = 1, inc = Amount};
@@ -108,6 +114,7 @@ encode(set_update, {remove_all, Elems}) ->
                         end,
                         Elems),
     #apbsetupdate{optype = 4, rems = BinElems};
+
 
 encode(read_objects, {Objects, TxId}) ->
     BoundObjects = lists:map(fun(Object) ->
@@ -151,6 +158,9 @@ encode(read_objects_response, {ok, Results}) ->
                            Results),
     #apbreadobjectsresp{success=true, objects = EncResults};
 
+encode(read_object_resp, {{_Key, riak_dt_lwwreg, _Bucket}, Val}) ->
+    #apbreadobjectresp{reg=#apbgetregresp{value=Val}};
+
 encode(read_object_resp, {{_Key, riak_dt_pncounter, _Bucket}, Val}) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
 
@@ -183,17 +193,23 @@ decode(type, 1) -> riak_dt_gcounter;
 decode(type, 2) -> riak_dt_orset;
 decode(type, 3) -> crdt_pncounter;
 decode(type, 4) -> crdt_orset;
+decode(type, 5) -> riak_dt_lwwreg;
 decode(error_code, 0) -> unknown;
 decode(error_code, 1) -> timeout;
 
-decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp}) ->
+decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp, 
+                regop = RegOp}) ->
     {Op, OpParam} = case OpType of
                  1 ->
                      decode(counter_update, CounterOp);
                  2 ->
-                     decode(set_update, SetOp)
+                     decode(set_update, SetOp);
+                 3 ->
+                     decode(reg_update, RegOp)
     end,
     {decode(bound_object, Object), Op, OpParam};
+decode(reg_update, #apbregupdate{optype = _Op, value =Value}) ->
+    {assign, Value};
 decode(counter_update, #apbcounterupdate{optype = Op, inc = I, dec = D}) ->
     case Op of
         1 -> {increment, I};

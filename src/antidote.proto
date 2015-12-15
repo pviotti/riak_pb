@@ -2,6 +2,16 @@
 option java_package = "com.basho.riak.protobuf";
 option java_outer_classname = "AntidotePB";
 
+// Counter increment requenst
+message ApbRegUpdate {
+    required uint32 optype = 1;
+    required bytes value = 2;
+}
+
+// Response operation
+message ApbGetRegResp {
+    required bytes value = 1;
+}
 
 // Counter increment requenst
 message ApbCounterUpdate {
@@ -61,7 +71,7 @@ message ApbUpdateOp {
         required uint32 optype = 2; // Identifies which type update, 1=counter, 2=set
         optional ApbCounterUpdate counterop = 3;
         optional ApbSetUpdate setop = 4;
-        // Add mode CRDTs here
+        optional ApbRegUpdate regop = 5;
 }
 
 // Objects to be updated
@@ -108,6 +118,7 @@ message ApbStartTransactionResp {
 message ApbReadObjectResp {
         optional ApbGetCounterResp counter = 1;
         optional ApbGetSetResp set = 2;
+        optional ApbGetRegResp reg = 3;
 }
 message ApbReadObjectsResp {
         required bool success = 1;

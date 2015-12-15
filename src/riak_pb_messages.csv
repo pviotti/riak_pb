@@ -48,6 +48,8 @@
 81,DtFetchResp,riak_dt
 82,DtUpdateReq,riak_dt
 83,DtUpdateResp,riak_dt
+107,ApbRegUpdate,antidote
+108,ApbGetRegResp,antidote
 109,ApbCounterUpdate,antidote
 110,ApbGetCounterResp,antidote
 111,ApbOperationResp,antidote
