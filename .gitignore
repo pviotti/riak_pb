@@ -1,10 +1,8 @@
 # Erlang
+_build/*
 .eunit/*
-deps/*
 priv/*
 *.o
-ebin/*.beam
-ebin/riak_pb.app
 include/*_pb.hrl
 doc/*
 .qc
