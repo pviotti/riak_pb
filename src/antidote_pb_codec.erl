@@ -56,18 +56,12 @@ encode(update_objects, {Updates, TxId}) ->
 encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
     EncObject = encode(bound_object, Object),
     case Type of
-        riak_dt_pncounter -> EncUp = encode(counter_update, {Op, Param}),
-                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
-        riak_dt_orset -> SetUp = encode(set_update, {Op, Param}),
-                         #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
-        crdt_pncounter -> EncUp = encode(counter_update, {Op, Param}),
-                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
-        crdt_orset -> SetUp = encode(set_update, {Op, Param}),
-                     #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
-        riak_dt_gcounter -> EncUp = encode(counter_update, {Op, Param}),
-                         #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
-        riak_dt_lwwreg -> EncUp = encode(reg_update, {Op, Param}),
-                         #apbupdateop{boundobject=EncObject, optype = 3, regop = EncUp}
+        antidote_crdt_counter -> EncUp = encode(counter_update, {Op, Param}),
+                                 #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
+        antidote_crdt_orset -> SetUp = encode(set_update, {Op, Param}),
+                               #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
+        antidote_crdt_lwwreg -> EncUp = encode(reg_update, {Op, Param}),
+                                #apbupdateop{boundobject=EncObject, optype = 3, regop = EncUp}
 
     end;
 
@@ -82,12 +76,9 @@ encode(static_update_objects, {Clock, Properties, Updates}) ->
 encode(bound_object, {Key, Type, Bucket}) ->
     #apbboundobject{key=Key, type=encode(type,Type), bucket=Bucket};
 
-encode(type, riak_dt_pncounter) -> 0;
-encode(type, riak_dt_gcounter) -> 1;
-encode(type, riak_dt_orset) -> 2;
-encode(type, crdt_pncounter) -> 3;
-encode(type, crdt_orset) -> 4;
-encode(type, riak_dt_lwwreg) -> 5;
+encode(type, antidote_crdt_counter) -> 3;
+encode(type, antidote_crdt_orset) -> 4;
+encode(type, antidote_crdt_lwwreg) -> 5;
 
 encode(reg_update, {assign, Value}) ->
     #apbregupdate{optype = 1, value=Value};
@@ -158,19 +149,13 @@ encode(read_objects_response, {ok, Results}) ->
                            Results),
     #apbreadobjectsresp{success=true, objects = EncResults};
 
-encode(read_object_resp, {{_Key, riak_dt_lwwreg, _Bucket}, Val}) ->
+encode(read_object_resp, {{_Key, antidote_crdt_lwwreg, _Bucket}, Val}) ->
     #apbreadobjectresp{reg=#apbgetregresp{value=term_to_binary(Val)}};
 
-encode(read_object_resp, {{_Key, riak_dt_pncounter, _Bucket}, Val}) ->
+encode(read_object_resp, {{_Key, antidote_crdt_counter, _Bucket}, Val}) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
 
-encode(read_object_resp, {{_Key, riak_dt_gcounter, _Bucket}, Val}) ->
-    #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
-
-encode(read_object_resp, {{_Key, riak_dt_orset, _Bucket}, Val}) ->
-    #apbreadobjectresp{set=#apbgetsetresp{value=term_to_binary(Val)}};
-
-encode(read_object_resp, {{_Key, crdt_orset, _Bucket}, Val}) ->
+encode(read_object_resp, {{_Key, antidote_crdt_orset, _Bucket}, Val}) ->
     #apbreadobjectresp{set=#apbgetsetresp{value=term_to_binary(Val)}};
 
 encode(static_read_objects_response, {ok, Results, CommitTime}) ->
@@ -191,12 +176,9 @@ decode(txn_properties, _Properties) ->
 decode(bound_object, #apbboundobject{key = Key, type=Type, bucket=Bucket}) ->
     {Key, decode(type, Type), Bucket};
 
-decode(type, 0) -> riak_dt_pncounter;
-decode(type, 1) -> riak_dt_gcounter;
-decode(type, 2) -> riak_dt_orset;
-decode(type, 3) -> crdt_pncounter;
-decode(type, 4) -> crdt_orset;
-decode(type, 5) -> riak_dt_lwwreg;
+decode(type, 3) -> antidote_crdt_counter;
+decode(type, 4) -> antidote_crdt_orset;
+decode(type, 5) -> antidote_crdt_lwwreg;
 decode(error_code, 0) -> unknown;
 decode(error_code, 1) -> timeout;
 
@@ -296,8 +278,8 @@ start_transaction_test() ->
                                           Msg#apbstarttransaction.properties)).
 
 read_transaction_test() ->
-    Objects = [{<<"key1">>, riak_dt_pncounter, <<"bucket1">>},
-               {<<"key2">>, riak_dt_orset, <<"bucket2">>}],
+    Objects = [{<<"key1">>, antidote_crdt_counter, <<"bucket1">>},
+               {<<"key2">>, antidote_crdt_orset, <<"bucket2">>}],
     TxId = term_to_binary({12}),
          %% Dummy value, structure of TxId is opaque to client
     EncRecord = antidote_pb_codec:encode(read_objects, {Objects, TxId}),
@@ -328,12 +310,12 @@ read_transaction_test() ->
                  antidote_pb_codec:decode_response(ResMsg)).
 
 update_types_test() ->
-    Updates = [ {{<<"1">>, riak_dt_pncounter, <<"2">>}, increment , 1},
-                {{<<"2">>, riak_dt_gcounter, <<"2">>}, increment , 1},
-                {{<<"a">>, riak_dt_orset, <<"2">>}, add , 3},
-                {{<<"b">>, crdt_pncounter, <<"2">>}, increment , 2},
-                {{<<"c">>, crdt_orset, <<"2">>}, add, 4},
-                {{<<"a">>, riak_dt_orset, <<"2">>}, add_all , [5,6]}
+    Updates = [ {{<<"1">>, antidote_crdt_counter, <<"2">>}, increment , 1},
+                {{<<"2">>, antidote_crdt_counter, <<"2">>}, increment , 1},
+                {{<<"a">>, antidote_crdt_orset, <<"2">>}, add , 3},
+                {{<<"b">>, antidote_crdt_counter, <<"2">>}, increment , 2},
+                {{<<"c">>, antidote_crdt_orset, <<"2">>}, add, 4},
+                {{<<"a">>, antidote_crdt_orset, <<"2">>}, add_all , [5,6]}
               ],
     TxId = term_to_binary({12}),
          %% Dummy value, structure of TxId is opaque to client
