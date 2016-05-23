@@ -87,8 +87,10 @@ encode(Msg) when is_tuple(Msg) ->
 %% return the atom for the message code. Replaces `riakc_pb:decode/2'.
 -spec decode(integer(), binary()) -> atom() | tuple().
 decode(MsgCode, <<>>) ->
+    lager:info("decoding code ~p", [MsgCode]),
     msg_type(MsgCode);
 decode(MsgCode, MsgData) ->
+    lager:info("decoding code ~p msg ~p", [MsgCode,MsgData]),
     Decoder = decoder_for(MsgCode),
     Decoder:decode(msg_type(MsgCode), MsgData).
 
