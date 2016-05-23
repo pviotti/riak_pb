@@ -115,7 +115,6 @@ encode(set_update, {remove_all, Elems}) ->
                         Elems),
     #apbsetupdate{optype = 4, rems = BinElems};
 
-
 encode(read_objects, {Objects, TxId}) ->
     BoundObjects = lists:map(fun(Object) ->
                                      encode(bound_object, Object) end,
@@ -177,6 +176,57 @@ encode(static_read_objects_response, {ok, Results, CommitTime}) ->
     #apbstaticreadobjectsresp{
        objects = encode(read_objects_response, {ok, Results}),
        committime = encode(commit_response, {ok, CommitTime})};
+
+
+
+
+
+%% For Legion clients
+
+encode(get_objects, Objects) ->
+    BoundObjects = lists:map(fun(Object) ->
+                                     encode(bound_object, Object) end,
+                             Objects),
+    #apbgetobjects{boundobjects = BoundObjects};
+
+encode(get_objects_response, {error, Reason}) ->
+    #apbgetobjectsresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(get_objects_response, {ok, Results}) ->
+    EncResults = lists:map(fun(R) ->
+                                   encode(get_object_resp, R) end,
+                           Results),
+    #apbgetobjectsresp{success=true, objects = EncResults};
+
+%% Here should convert to json
+%% also add a time?
+encode(get_object_resp, {{_Key, _Type, _Bucket}, Val}) ->
+    #apbobjectresp{value=term_to_binary(Val)};
+
+
+
+encode(get_log_operations, {TimeStamp,Objects}) ->
+    BoundObjects = lists:map(fun(Object) ->
+                                     encode(bound_object, Object) end,
+                             Objects),
+    #apbgetlogoperations{timestamp = TimeStamp, boundobjects = BoundObjects};
+
+encode(get_log_operations_response, {error, Reason}) ->
+    #apbgetlogoperationsresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(get_log_operations_response, {ok, Results}) ->
+    EncResults = lists:map(fun(R) ->
+                                   encode(get_log_operation_resp, R) end,
+                           Results),
+    #apbgetlogoperationsresp{success=true, objects = EncResults};
+
+%% Here should convert to json
+encode(get_log_operation_resp, {{_Key, _Type, _Bucket}, Val}) ->
+    #apblogoperationresp{value=term_to_binary(Val)};
+
+
+
+
 
 %% Add new error codes
 encode(error_code, unknown) -> 0;
@@ -274,6 +324,32 @@ decode_response(#apbstaticreadobjectsresp{objects = Objects,
     {read_objects, Values} = decode_response(Objects),
     {commit_transaction, TimeStamp} = decode_response(CommitTime),
     {static_read_objects_resp, Values, TimeStamp};
+
+
+%% For legion clients
+decode_response(#apbgetobjectsresp{success=false, errorcode=Reason}) ->
+    {error, decode(error_code, Reason)};
+decode_response(#apbgetobjectsresp{success=true, objects = Objects}) ->
+    Resps = lists:map(fun(O) ->
+                              decode_response(O) end,
+                      Objects),
+    {get_objects, Resps};
+decode_response(#apbobjectresp{value = Val}) ->
+    {object, erlang:binary_to_term(Val)};
+
+
+decode_response(#apbgetlogoperationsresp{success=false, errorcode=Reason}) ->
+    {error, decode(error_code, Reason)};
+decode_response(#apbgetlogoperationsresp{success=true, objects = Objects}) ->
+    Resps = lists:map(fun(O) ->
+                              decode_response(O) end,
+                      Objects),
+    {get_log_operations, Resps};
+decode_response(#apblogoperationresp{value = Val}) ->
+    {log_operations, erlang:binary_to_term(Val)};
+
+
+
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
 

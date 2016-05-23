@@ -137,3 +137,41 @@ message ApbStaticReadObjectsResp {
 	required ApbReadObjectsResp objects = 1;
 	required ApbCommitResp committime = 2;
 }
+
+//-------------------------------------------------------------------------
+
+// Objects to be read
+message ApbGetObjects {
+        repeated ApbBoundObject boundobjects = 1;
+}
+
+// Get object request
+message ApbObjectResp {
+    required bytes value = 1;
+}
+
+//Read Objects Response
+message ApbGetObjectsResp {
+    required bool success = 1;
+    repeated ApbObjectResp objects = 2;   
+    optional uint32 errorcode = 3;
+}
+
+
+// Objects to get log operations for
+message ApbGetLogOperations {
+    required bytes timestamp = 1;
+    repeated ApbBoundObject boundobjects = 2;
+}
+
+// Get log operations request
+message ApbLogOperationResp {
+    required bytes value = 1;
+}
+
+//Read Log Operation Response
+message ApbGetLogOperationsResp {
+    required bool success = 1;
+    repeated ApbLogOperationResp objects = 2;
+    optional uint32 errorcode = 3;
+}
