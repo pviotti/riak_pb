@@ -203,7 +203,7 @@ encode(get_objects_response, {ok, Results}) ->
 encode(get_object_resp, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
     io:format("the val ~p, the committime ~p~n",[Val,dict:to_list(CommitTime)]),
     JsonVal = Type:to_json(Val),
-    JsonClock = [{timestamp,dict:to_list(CommitTime)}],
+    JsonClock = vectorclock:to_json(CommitTime),
     io:format("the json jal ~p~n", [[JsonVal,JsonClock]]),
     #apbobjectresp{value=jsx:encode([JsonVal,JsonClock])};
 
