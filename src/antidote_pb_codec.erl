@@ -339,7 +339,7 @@ decode_response(#apbgetobjectsresp{success=true, objects = Objects}) ->
                       Objects),
     {get_objects, Resps};
 decode_response(#apbobjectresp{value = Val}) ->
-    {object, erlang:binary_to_term(Val)};
+    {object, jsx:decode(Val,[{labels,atom}])};
 
 
 decode_response(#apbgetlogoperationsresp{success=false, errorcode=Reason}) ->
