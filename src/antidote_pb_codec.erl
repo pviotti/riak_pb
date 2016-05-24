@@ -201,7 +201,7 @@ encode(get_objects_response, {ok, Results}) ->
 %% Here should convert to json
 %% also add a time?
 encode(get_object_resp, {{_Key, _Type, _Bucket}, Val}) ->
-    #apbobjectresp{value=jsx:encode(Val)};
+    #apbobjectresp{value=jsx:encode(test)};
 
 
 
