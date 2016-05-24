@@ -200,8 +200,12 @@ encode(get_objects_response, {ok, Results}) ->
 
 %% Here should convert to json
 %% also add a time?
-encode(get_object_resp, {{_Key, _Type, _Bucket}, _Val}) ->
-    #apbobjectresp{value=jsx:encode(test)};
+encode(get_object_resp, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
+    io:format("the val ~p, the committime ~p~n",[Val,dict:to_list(CommitTime)]),
+    JsonVal = Type:to_json(Val),
+    JsonClock = [{timestamp,dict:to_list(CommitTime)}],
+    io:format("the json jal ~p~n", [[JsonVal,JsonClock]]),
+    #apbobjectresp{value=jsx:encode([JsonVal,JsonClock])};
 
 
 
