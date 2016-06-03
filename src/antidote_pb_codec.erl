@@ -183,14 +183,17 @@ encode(static_read_objects_response, {ok, Results, CommitTime}) ->
 
 %% For Legion clients
 
-encode(get_objects, Objects) ->
+encode(get_objects, {Objects, ReplyType}) ->
     BoundObjects = lists:map(fun(Object) ->
                                      encode(bound_object, Object) end,
                              Objects),
-    #apbgetobjects{boundobjects = BoundObjects};
+    #apbgetobjects{boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
 
 encode(get_objects_response, {error, Reason}) ->
     #apbgetobjectsresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(get_objects_response_json, {error, Reason}) ->
+    jsx:encode([{error, encode(error_code, Reason)}]);
 
 encode(get_objects_response, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
@@ -198,21 +201,36 @@ encode(get_objects_response, {ok, Results}) ->
                            Results),
     #apbgetobjectsresp{success=true, objects = EncResults};
 
-encode(get_object_resp, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
+encode(get_objects_response_json, {ok, Results}) ->
+    EncResults = lists:map(fun(R) ->
+                                   encode(get_object_resp_json, R) end,
+                           Results),
+    jsx:encode([{success, EncResults}]);
+
+encode(get_object_resp, {{_Key, _Type, _Bucket}, {Val,CommitTime}}) ->
+    %%JsonVal = Type:to_json(Val),
+    %%JsonClock = vectorclock:to_json(CommitTime),
+    %%#apbobjectresp{value=jsx:encode([JsonVal,JsonClock])};
+    #apbobjectresp{value=term_to_binary([Val,CommitTime])};
+
+encode(get_object_resp_json, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
     JsonVal = Type:to_json(Val),
     JsonClock = vectorclock:to_json(CommitTime),
-    #apbobjectresp{value=jsx:encode([JsonVal,JsonClock])};
+    [JsonVal,JsonClock];
 
 
 
-encode(get_log_operations, {TimeStamp,Objects}) ->
+encode(get_log_operations, {TimeStamp,Objects,ReplyType}) ->
     BoundObjects = lists:map(fun(Object) ->
                                      encode(bound_object, Object) end,
                              Objects),
-    #apbgetlogoperations{timestamp = TimeStamp, boundobjects = BoundObjects};
+    #apbgetlogoperations{timestamp = TimeStamp, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
 
 encode(get_log_operations_response, {error, Reason}) ->
     #apbgetlogoperationsresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(get_log_operations_response_json, {error, Reason}) ->
+    jsx:encode([{error, encode(error_code, Reason)}]);
 
 encode(get_log_operations_response, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
@@ -220,13 +238,24 @@ encode(get_log_operations_response, {ok, Results}) ->
                            Results),
     #apbgetlogoperationsresp{success=true, objects = EncResults};
 
-%% Here should convert to json
+encode(get_log_operations_response_json, {ok, Results}) ->
+    EncResults = lists:map(fun(R) ->
+                                   encode(get_log_operation_resp_json, R) end,
+                           Results),
+    jsx:encode([{success, EncResults}]);
+
 encode(get_log_operation_resp, {{_Key, _Type, _Bucket}, Val}) ->
+    #apblogoperationresp{value=term_to_binary(Val)};
+
+%% Here should convert to json
+encode(get_log_operation_resp_json, {{_Key, _Type, _Bucket}, Val}) ->
     #apblogoperationresp{value=term_to_binary(Val)};
 
 
 
-
+encode(replytype_code, proto_buf) -> 0;
+encode(replytype_code, json) -> 1;
+encode(replytype_code, _Other) -> 1;
 
 %% Add new error codes
 encode(error_code, unknown) -> 0;
@@ -249,6 +278,9 @@ decode(type, 4) -> crdt_orset;
 decode(type, 5) -> riak_dt_lwwreg;
 decode(error_code, 0) -> unknown;
 decode(error_code, 1) -> timeout;
+
+decode(replytype_code, 0) -> proto_buf;
+decode(replytype_code, 1) -> json;
 
 decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp, 
                 regop = RegOp}) ->
@@ -335,7 +367,8 @@ decode_response(#apbgetobjectsresp{success=true, objects = Objects}) ->
                       Objects),
     {get_objects, Resps};
 decode_response(#apbobjectresp{value = Val}) ->
-    {object, jsx:decode(Val,[{labels,atom}])};
+    %% {object, jsx:decode(Val,[{labels,atom}])};
+    {object, binary_to_term(Val)};
 
 
 decode_response(#apbgetlogoperationsresp{success=false, errorcode=Reason}) ->

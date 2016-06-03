@@ -142,7 +142,8 @@ message ApbStaticReadObjectsResp {
 
 // Objects to be read
 message ApbGetObjects {
-        repeated ApbBoundObject boundobjects = 1;
+	required uint32 replytype = 1;
+        repeated ApbBoundObject boundobjects = 2;
 }
 
 // Get object request
@@ -160,8 +161,9 @@ message ApbGetObjectsResp {
 
 // Objects to get log operations for
 message ApbGetLogOperations {
-    required bytes timestamp = 1;
-    repeated ApbBoundObject boundobjects = 2;
+    required uint32 replytype = 1;
+    required bytes timestamp = 2;
+    repeated ApbBoundObject boundobjects = 3;
 }
 
 // Get log operations request
