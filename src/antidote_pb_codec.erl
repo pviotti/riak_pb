@@ -206,7 +206,7 @@ encode(get_objects_response_json, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
                                    encode(get_object_resp_json, R) end,
                            Results),
-    #apbjsonresp{value = jsx:encode([{success, EncResults}])};
+    #apbjsonresp{value = jsx:encode([{success, [{get_objects_resp,EncResults}]}])};
     %% #apbgetobjectsresp{success=true, objects = jsx:encode(EncResults)};
 
 encode(get_object_resp, {{_Key, _Type, _Bucket}, {Val,CommitTime}}) ->
@@ -244,15 +244,18 @@ encode(get_log_operations_response_json, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
                                    encode(get_log_operation_resp_json, R) end,
                            Results),
-    #apbjsonresp{value = jsx:encode([{success, EncResults}])};
+    #apbjsonresp{value = jsx:encode([{success, [{get_log_operations_resp,EncResults}]}])};
 
 encode(get_log_operation_resp, {{_Key, _Type, _Bucket}, Val}) ->
     #apblogoperationresp{value=term_to_binary(Val)};
 
 %% Here should convert to json
-encode(get_log_operation_resp_json, {{_Key, _Type, _Bucket}, Val}) ->
-    #apblogoperationresp{value=term_to_binary(Val)};
-
+encode(get_log_operation_resp_json, {{_Key, _Type, _Bucket}, Res}) ->
+    JRes = 
+	lists:map(fun({OpId,Payload}) ->
+			  [{opid_and_payload,[OpId,json_utilities:clocksi_payload_to_json(Payload)]}]
+		  end, Res),
+    [{log_operations,JRes}];
 
 
 encode(replytype_code, proto_buf) -> 0;
@@ -363,12 +366,8 @@ decode_response(#apbstaticreadobjectsresp{objects = Objects,
 %% For legion clients
 decode_response(#apbjsonresp{value=Value}) ->
     case jsx:decode(Value,[{labels,atom}]) of
-	[{success, Objects}] ->
-	    Resps =
-		lists:map(fun(O) ->
-				  decode_response(O) end,
-			  Objects),
-	    {get_objects, Resps};
+	[{success, Resp}] ->
+	    decode_json(Resp);
 	[{error, Reason}] ->
 	    {error, decode(error_code, Reason)}
     end;
@@ -395,11 +394,28 @@ decode_response(#apbgetlogoperationsresp{success=true, objects = Objects}) ->
     {get_log_operations, Resps};
 decode_response(#apblogoperationresp{value = Val}) ->
     {log_operations, erlang:binary_to_term(Val)};
-
-
-
+decode_response([{opid_and_payload,[OpId,Payload]}]) ->
+    {opid_and_payload, [OpId,json_utilities:clocksi_payload_from_json(Payload)]};
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
+
+
+decode_json([{get_objects_resp, Objects}]) ->
+    Resps =
+	lists:map(fun(O) ->
+			  decode_response(O) end,
+		  Objects),
+    {get_objects, Resps};
+decode_json([{get_log_operations_resp, Objects}]) ->
+    Resps =
+	lists:map(fun([{log_operations, Ops}]) ->
+			  lists:map(fun(O) ->
+					    decode_response(O)
+				    end, Ops)
+		  end, Objects),
+    {get_log_operations, Resps};
+decode_json(Other) ->
+    erlang:error("Unexpected json message: ~p",[Other]).
 
 
 
