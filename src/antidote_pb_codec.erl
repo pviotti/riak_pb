@@ -362,7 +362,7 @@ decode_response(#apbstaticreadobjectsresp{objects = Objects,
 
 %% For legion clients
 decode_response(#apbjsonresp{value=Value}) ->
-    case jsx:decode(Value) of
+    case jsx:decode(Value,[{labels,atom}]) of
 	[{success, Objects}] ->
 	    Resps =
 		lists:map(fun(O) ->
