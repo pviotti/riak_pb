@@ -193,7 +193,7 @@ encode(get_objects_response, {error, Reason}) ->
     #apbgetobjectsresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(get_objects_response_json, {error, Reason}) ->
-    {json, [{error, encode(error_code, Reason)}]};
+    #apbjsonresp{value = jsx:encode([{error, encode(error_code, Reason)}])};
     %% #apbgetobjectsresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(get_objects_response, {ok, Results}) ->
@@ -206,7 +206,7 @@ encode(get_objects_response_json, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
                                    encode(get_object_resp_json, R) end,
                            Results),
-    {json, [{success, EncResults}]};
+    #apbjsonresp{value = jsx:encode([{success, EncResults}])};
     %% #apbgetobjectsresp{success=true, objects = jsx:encode(EncResults)};
 
 encode(get_object_resp, {{_Key, _Type, _Bucket}, {Val,CommitTime}}) ->
@@ -232,7 +232,7 @@ encode(get_log_operations_response, {error, Reason}) ->
     #apbgetlogoperationsresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(get_log_operations_response_json, {error, Reason}) ->
-    {json, [{error, encode(error_code, Reason)}]};
+    #apbjsonresp{value = jsx:encode([{error, encode(error_code, Reason)}])};
 
 encode(get_log_operations_response, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
@@ -244,7 +244,7 @@ encode(get_log_operations_response_json, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
                                    encode(get_log_operation_resp_json, R) end,
                            Results),
-    {json, [{success, EncResults}]};
+    #apbjsonresp{value = jsx:encode([{success, EncResults}])};
 
 encode(get_log_operation_resp, {{_Key, _Type, _Bucket}, Val}) ->
     #apblogoperationresp{value=term_to_binary(Val)};

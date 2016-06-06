@@ -76,8 +76,6 @@
 %% @doc Create an iolist of msg code and protocol buffer
 %% message. Replaces `riakc_pb:encode/1'.
 -spec encode(atom() | tuple()) -> iolist().
-encode({json, Msg}) ->
-    jsx:encode(Msg);
 encode(Msg) when is_atom(Msg) ->
     [msg_code(Msg)];
 encode(Msg) when is_tuple(Msg) ->

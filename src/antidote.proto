@@ -177,3 +177,10 @@ message ApbGetLogOperationsResp {
     repeated ApbLogOperationResp objects = 2;
     optional uint32 errorcode = 3;
 }
+
+//-------------------------------------------------------------------------
+
+//Json reply
+message ApbJsonResp {
+    required bytes value = 1;
+}
