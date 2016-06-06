@@ -218,7 +218,7 @@ encode(get_object_resp, {{_Key, _Type, _Bucket}, {Val,CommitTime}}) ->
 encode(get_object_resp_json, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
     JsonVal = Type:to_json(Val),
     JsonClock = vectorclock:to_json(CommitTime),
-    [JsonVal,JsonClock];
+    [{object_and_clock, [JsonVal,JsonClock]}];
 
 
 
@@ -361,6 +361,17 @@ decode_response(#apbstaticreadobjectsresp{objects = Objects,
 
 
 %% For legion clients
+decode_response(#apbjsonresp{value=Value}) ->
+    case jsx:decode(Value) of
+	[{success, Objects}] ->
+	    Resps =
+		lists:map(fun(O) ->
+				  decode_response(O) end,
+			  Objects),
+	    {get_objects, Resps};
+	[{error, Reason}] ->
+	    {error, decode(error_code, Reason)}
+    end;
 decode_response(#apbgetobjectsresp{success=false, errorcode=Reason}) ->
     {error, decode(error_code, Reason)};
 decode_response(#apbgetobjectsresp{success=true, objects = Objects}) ->
@@ -371,6 +382,8 @@ decode_response(#apbgetobjectsresp{success=true, objects = Objects}) ->
 decode_response(#apbobjectresp{value = Val}) ->
     %% {object, jsx:decode(Val,[{labels,atom}])};
     {object, binary_to_term(Val)};
+decode_response([{object_and_clock, [Object,Clock]}]) ->
+    {object, [json_utilities:crdt_from_json(Object),vectorclock:from_json(Clock)]};
 
 
 decode_response(#apbgetlogoperationsresp{success=false, errorcode=Reason}) ->
