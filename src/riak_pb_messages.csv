@@ -76,7 +76,9 @@
 132,ApbGetLogOperations,antidote
 133,ApbLogOperationResp,antidote
 134,ApbGetLogOperationsResp,antidote
-135,ApbJsonResp,antidote
+135,ApbJsonRequest,antidote
+136,ApbJsonResp,antidote
+137,ApbVectorclock,antidote
 253,RpbAuthReq,riak
 254,RpbAuthResp,riak
 255,RpbStartTls,riak

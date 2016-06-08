@@ -140,6 +140,11 @@ message ApbStaticReadObjectsResp {
 
 //-------------------------------------------------------------------------
 
+// Vectorclocks
+message ApbVectorclock {
+    required bytes value = 1;
+}
+
 // Objects to be read
 message ApbGetObjects {
 	required uint32 replytype = 1;
@@ -158,11 +163,10 @@ message ApbGetObjectsResp {
     optional uint32 errorcode = 3;
 }
 
-
 // Objects to get log operations for
 message ApbGetLogOperations {
     required uint32 replytype = 1;
-    required bytes timestamp = 2;
+    repeated ApbVectorclock timestamps = 2;
     repeated ApbBoundObject boundobjects = 3;
 }
 
@@ -179,6 +183,11 @@ message ApbGetLogOperationsResp {
 }
 
 //-------------------------------------------------------------------------
+
+//Json request
+message ApbJsonRequest {
+    required bytes value = 1;
+}
 
 //Json reply
 message ApbJsonResp {

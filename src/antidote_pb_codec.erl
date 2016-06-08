@@ -82,6 +82,10 @@ encode(static_update_objects, {Clock, Properties, Updates}) ->
 encode(bound_object, {Key, Type, Bucket}) ->
     #apbboundobject{key=Key, type=encode(type,Type), bucket=Bucket};
 
+encode(vectorclock, Clock) ->
+    %% Fix this
+    #apbvectorclock{value=term_to_binary(Clock)};
+
 encode(type, riak_dt_pncounter) -> 0;
 encode(type, riak_dt_gcounter) -> 1;
 encode(type, riak_dt_orset) -> 2;
@@ -222,11 +226,12 @@ encode(get_object_resp_json, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
 
 
 
-encode(get_log_operations, {TimeStamp,Objects,ReplyType}) ->
-    BoundObjects = lists:map(fun(Object) ->
-                                     encode(bound_object, Object) end,
-                             Objects),
-    #apbgetlogoperations{timestamp = TimeStamp, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
+encode(get_log_operations, {ObjectClockTuples,ReplyType}) ->
+    {BoundObjects,Clocks} =
+	lists:foldl(fun({Object,Clock},{AccObj,AccClock}) ->
+			    {AccObj++encode(bound_object, Object), AccClock++encode(vectorclock, Clock)} end,
+		    {[],[]}, ObjectClockTuples),
+    #apbgetlogoperations{timestamps = Clocks, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
 
 encode(get_log_operations_response, {error, Reason}) ->
     #apbgetlogoperationsresp{success=false, errorcode = encode(error_code, Reason)};
@@ -286,6 +291,9 @@ decode(error_code, 1) -> timeout;
 
 decode(replytype_code, 0) -> proto_buf;
 decode(replytype_code, 1) -> json;
+
+decode(vectorclock, #apbvectorclock{value = BClock}) ->
+    binary_to_term(BClock);
 
 decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp, 
                 regop = RegOp}) ->
