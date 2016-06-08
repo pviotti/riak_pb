@@ -443,13 +443,13 @@ decode_response(Other) ->
 
 
 decode_json([{get_objects,[[{bountobjects,JBoundObjects}],[{replytype,ReplyTypeCode}]]}]) ->
-    ReplyType = decode(reply_type_code,ReplyTypeCode),
+    ReplyType = decode(replytype_code,ReplyTypeCode),
     BoundObjects = lists:map(fun(O) ->
 				     decode_json(O)
 			     end, JBoundObjects),
     {get_objects, {ReplyType,BoundObjects}};
 decode_json([{get_log_operations,[[{timestamps,JClocks}],[{boundobjects,JBoundObjects}],[{replytype,ReplyTypeCode}]]}]) ->
-    ReplyType = decode(reply_type_code,ReplyTypeCode),
+    ReplyType = decode(replytype_code,ReplyTypeCode),
     BoundObjects = lists:map(fun(O) ->
 				     decode_json(O)
 			     end, JBoundObjects),
