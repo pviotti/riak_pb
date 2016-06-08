@@ -229,7 +229,7 @@ encode(get_object_resp_json, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
 encode(get_log_operations, {ObjectClockTuples,ReplyType}) ->
     {BoundObjects,Clocks} =
 	lists:foldl(fun({Object,Clock},{AccObj,AccClock}) ->
-			    {AccObj++encode(bound_object, Object), AccClock++encode(vectorclock, Clock)} end,
+			    {AccObj++[encode(bound_object, Object)], AccClock++[encode(vectorclock, Clock)]} end,
 		    {[],[]}, ObjectClockTuples),
     #apbgetlogoperations{timestamps = Clocks, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
 
