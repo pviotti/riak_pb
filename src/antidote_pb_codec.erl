@@ -401,6 +401,7 @@ decode_response(Other) ->
 
 
 decode_json([{get_objects_resp, Objects}]) ->
+    io:format("the json log resp: ~p", [Objects]),
     Resps =
 	lists:map(fun(O) ->
 			  decode_response(O) end,
