@@ -189,9 +189,20 @@ encode(static_read_objects_response, {ok, Results, CommitTime}) ->
 
 encode(get_objects, {Objects, ReplyType}) ->
     BoundObjects = lists:map(fun(Object) ->
-                                     encode(bound_object, Object) end,
-                             Objects),
-    #apbgetobjects{boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
+				     case ReplyType of
+					 profobuf ->
+					     encode(bound_object, Object);
+					 json ->
+					     encode_json(bound_object, Object)
+				     end
+			     end, Objects),
+    case ReplyType of
+	protobuf ->
+	    #apbgetobjects{boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
+	json ->
+	    JReq = [{get_objects,[[{bountobjects,BoundObjects}],[{replytype,encode(replytype_code,ReplyType)}]]}],
+	    #apbjsonrequest{value=jsx:encode(JReq)}
+    end;
 
 encode(get_objects_response, {error, Reason}) ->
     #apbgetobjectsresp{success=false, errorcode = encode(error_code, Reason)};
@@ -229,9 +240,20 @@ encode(get_object_resp_json, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
 encode(get_log_operations, {ObjectClockTuples,ReplyType}) ->
     {BoundObjects,Clocks} =
 	lists:foldl(fun({Object,Clock},{AccObj,AccClock}) ->
-			    {AccObj++[encode(bound_object, Object)], AccClock++[encode(vectorclock, Clock)]} end,
-		    {[],[]}, ObjectClockTuples),
-    #apbgetlogoperations{timestamps = Clocks, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
+			    case ReplyType of
+				protobuf ->
+				    {AccObj++[encode(bound_object, Object)], AccClock++[encode(vectorclock, Clock)]};
+				json ->
+				    {AccObj++[encode_json(bound_object, Object)], AccClock++[encode_json(vectorclock, Clock)]}
+			    end
+		    end, {[],[]}, ObjectClockTuples),
+    case ReplyType of
+	protobuf ->
+	    #apbgetlogoperations{timestamps = Clocks, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
+	json ->
+	    JReq = [{get_log_operations,[[{timestamps,Clocks}],[{boundobjects,BoundObjects}],[{replytype,encode(replytype_code,ReplyType)}]]}],
+	    #apbjsonrequest{value=jsx:encode(JReq)}
+    end;
 
 encode(get_log_operations_response, {error, Reason}) ->
     #apbgetlogoperationsresp{success=false, errorcode = encode(error_code, Reason)};
@@ -274,6 +296,16 @@ encode(error_code, _Other) -> 0;
 
 encode(_Other, _) ->
     erlang:error("Incorrect operation/Not yet implemented").
+
+
+
+encode_json(bound_object, {Key, Type, Bucket}) ->
+    [{bound_object, [Key, Type, Bucket]}];
+
+encode_json(vectorclock, Clock) ->
+    vectorclock:to_json(Clock).
+
+
 
 decode(txn_properties, _Properties) ->
     {};
@@ -409,6 +441,22 @@ decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
 
 
+decode_json([{get_objects,[[{bountobjects,JBoundObjects}],[{replytype,ReplyTypeCode}]]}]) ->
+    ReplyType = decode(reply_type_code,ReplyTypeCode),
+    BoundObjects = lists:map(fun(O) ->
+				     decode_json(O)
+			     end, JBoundObjects),
+    {get_objects, {ReplyType,BoundObjects}};
+decode_json([{get_log_operations,[[{timestamps,JClocks}],[{boundobjects,JBoundObjects}],[{replytype,ReplyTypeCode}]]}]) ->
+    ReplyType = decode(reply_type_code,ReplyTypeCode),
+    BoundObjects = lists:map(fun(O) ->
+				     decode_json(O)
+			     end, JBoundObjects),
+    Clocks = lists:map(fun(O) ->
+			       decode_json(O)
+		       end, JClocks),
+    {get_log_operations, {ReplyType,BoundObjects,Clocks}};
+
 decode_json([{get_objects_resp, Objects}]) ->
     io:format("the json log resp: ~p", [Objects]),
     Resps =
@@ -424,6 +472,12 @@ decode_json([{get_log_operations_resp, Objects}]) ->
 				    end, Ops)
 		  end, Objects),
     {get_log_operations, Resps};
+
+decode_json([{bound_object, [Key, Type, Bucket]}]) ->
+    {Key,Type,Bucket};
+decode_json([{vectorclock,Elements}]) ->
+    vectorclock:from_json([{vectorclock,Elements}]);
+
 decode_json(Other) ->
     erlang:error("Unexpected json message: ~p",[Other]).
 
