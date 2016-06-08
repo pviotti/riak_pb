@@ -395,6 +395,7 @@ decode_response(#apbgetlogoperationsresp{success=true, objects = Objects}) ->
 decode_response(#apblogoperationresp{value = Val}) ->
     {log_operations, erlang:binary_to_term(Val)};
 decode_response([{opid_and_payload,[OpId,Payload]}]) ->
+    io:format("opid and payload ~p", [[OpId,Payload]]),
     {opid_and_payload, [OpId,json_utilities:clocksi_payload_from_json(Payload)]};
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
