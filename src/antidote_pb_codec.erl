@@ -28,6 +28,7 @@
 
 -export([encode/2,
          decode/2,
+	 decode_json/1,
          decode_response/1]).
 
 -define(TYPE_COUNTER, counter).
@@ -474,6 +475,7 @@ decode_json([{get_log_operations_resp, Objects}]) ->
     {get_log_operations, Resps};
 
 decode_json([{bound_object, [Key, Type, Bucket]}]) ->
+    json_utilities:type_from_json(Type),
     {Key,Type,Bucket};
 decode_json([{vectorclock,Elements}]) ->
     vectorclock:from_json([{vectorclock,Elements}]);
