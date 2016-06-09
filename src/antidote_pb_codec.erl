@@ -447,7 +447,7 @@ decode_json([{get_objects,[[{bountobjects,JBoundObjects}],[{replytype,ReplyTypeC
     BoundObjects = lists:map(fun(O) ->
 				     decode_json(O)
 			     end, JBoundObjects),
-    {get_objects, {ReplyType,BoundObjects}};
+    {get_objects, ReplyType,BoundObjects};
 decode_json([{get_log_operations,[[{timestamps,JClocks}],[{boundobjects,JBoundObjects}],[{replytype,ReplyTypeCode}]]}]) ->
     ReplyType = decode(replytype_code,ReplyTypeCode),
     BoundObjects = lists:map(fun(O) ->
@@ -456,7 +456,7 @@ decode_json([{get_log_operations,[[{timestamps,JClocks}],[{boundobjects,JBoundOb
     Clocks = lists:map(fun(O) ->
 			       decode_json(O)
 		       end, JClocks),
-    {get_log_operations, {ReplyType,BoundObjects,Clocks}};
+    {get_log_operations, ReplyType,BoundObjects,Clocks};
 
 decode_json([{get_objects_resp, Objects}]) ->
     io:format("the json log resp: ~p", [Objects]),
@@ -475,8 +475,7 @@ decode_json([{get_log_operations_resp, Objects}]) ->
     {get_log_operations, Resps};
 
 decode_json([{bound_object, [Key, Type, Bucket]}]) ->
-    json_utilities:type_from_json(Type),
-    {Key,Type,Bucket};
+    {Key,json_utilities:type_from_json(Type),Bucket};
 decode_json([{vectorclock,Elements}]) ->
     vectorclock:from_json([{vectorclock,Elements}]);
 
