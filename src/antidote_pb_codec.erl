@@ -198,7 +198,7 @@ encode(get_objects, {Objects, ReplyType}) ->
 				     end
 			     end, Objects),
     case ReplyType of
-	protobuf ->
+	proto_buf ->
 	    #apbgetobjects{boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
 	json ->
 	    JReq = [{get_objects,[[{bountobjects,BoundObjects}],[{replytype,encode(replytype_code,ReplyType)}]]}],
@@ -242,14 +242,14 @@ encode(get_log_operations, {ObjectClockTuples,ReplyType}) ->
     {BoundObjects,Clocks} =
 	lists:foldl(fun({Object,Clock},{AccObj,AccClock}) ->
 			    case ReplyType of
-				protobuf ->
+				proto_buf ->
 				    {AccObj++[encode(bound_object, Object)], AccClock++[encode(vectorclock, Clock)]};
 				json ->
 				    {AccObj++[encode_json(bound_object, Object)], AccClock++[encode_json(vectorclock, Clock)]}
 			    end
 		    end, {[],[]}, ObjectClockTuples),
     case ReplyType of
-	protobuf ->
+	proto_buf ->
 	    #apbgetlogoperations{timestamps = Clocks, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
 	json ->
 	    JReq = [{get_log_operations,[[{timestamps,Clocks}],[{boundobjects,BoundObjects}],[{replytype,encode(replytype_code,ReplyType)}]]}],
