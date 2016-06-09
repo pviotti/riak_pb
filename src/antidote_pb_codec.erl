@@ -275,7 +275,12 @@ encode(get_log_operations_response_json, {ok, Results}) ->
     #apbjsonresp{value = jsx:encode([{success, [{get_log_operations_resp,EncResults}]}])};
 
 encode(get_log_operation_resp, {{_Key, _Type, _Bucket}, Val}) ->
-    #apblogoperationresp{value=term_to_binary(Val)};
+    %% TODO fix this to use proper protocol buffers
+    Ops = 
+	lists:map(fun(O) ->
+			  {opid_and_payload,O}
+		  end, Val),
+    #apblogoperationresp{value=term_to_binary(Ops)};
 
 %% Here should convert to json
 encode(get_log_operation_resp_json, {{_Key, _Type, _Bucket}, Res}) ->
