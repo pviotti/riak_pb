@@ -246,6 +246,12 @@ encode(read_object_resp, {{_Key, riak_dt_orset, _Bucket}, Val}) ->
 encode(read_object_resp, {{_Key, crdt_orset, _Bucket}, Val}) ->
     #apbreadobjectresp{set=#apbgetsetresp{value=term_to_binary(Val)}};
 
+encode(static_read_objects_response, {error, Reason}) ->
+    #apbcommitresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(static_read_objects_response_json, {error, Reason}) ->
+    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
+
 encode(static_read_objects_response, {ok, Results, CommitTime}) ->
     #apbstaticreadobjectsresp{
        objects = encode(read_objects_response, {ok, Results}),
