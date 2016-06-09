@@ -34,25 +34,45 @@
 -define(TYPE_COUNTER, counter).
 -define(TYPE_SET, set).
 
-encode(start_transaction, {Clock, Properties}) ->
+encode(start_transaction, {Clock, Properties, proto_buf}) ->
     #apbstarttransaction{timestamp=Clock,
                          properties = encode(txn_properties, Properties)};
+
+encode(start_transaction, {Clock, Properties, json}) ->
+    JReq = [{start_transaction, [vectorclock:to_json(Clock), encode_json(txn_properties, Properties)]}],
+    #apbjsonrequest{value=jsx:encode(JReq)};
 
 encode(txn_properties, _) ->
  %%TODO: Add more property paramaeters
  #apbtxnproperties{};
 
-encode(abort_transaction, TxId) ->
+
+encode(abort_transaction, {TxId, proto_buf}) ->
     #apbaborttransaction{transaction_descriptor = TxId};
 
-encode(commit_transaction, TxId) ->
+encode(abort_transaction, {TxId,json}) ->
+    JReq = [{abort_transaction, json_utilities:txid_to_json(TxId)}],
+    #apbjsonrequest{value=jsx:encode(JReq)};
+
+encode(commit_transaction, {TxId, proto_buf}) ->
     #apbcommittransaction{transaction_descriptor = TxId};
 
-encode(update_objects, {Updates, TxId}) ->
-   EncUpdates = lists:map(fun(Update) ->
-                                  encode(update_op, Update) end,
-                          Updates),
-   #apbupdateobjects{ updates = EncUpdates, transaction_descriptor = TxId};
+encode(commit_transaction, {TxId,json}) ->
+    JReq = [{commit_transaction, json_utilities:txid_to_json(TxId)}],
+    #apbjsonrequest{value=jsx:encode(JReq)};
+
+encode(update_objects, {Updates, TxId, protobuf}) ->
+    EncUpdates = lists:map(fun(Update) ->
+				   encode(update_op, Update) end,
+			   Updates),
+    #apbupdateobjects{updates = EncUpdates, transaction_descriptor = TxId};
+
+encode(update_objects, {Updates, TxId, json}) ->
+    EncUpdates = lists:map(fun(Update) ->
+				   encode_json(update_op, Update) end,
+			   Updates),
+    JReq = [{update_objects, [EncUpdates, json_utilities:txid_to_json(TxId)]}],
+    #apbjsonrequest{value=jsx:encode(JReq)};
 
 encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
     EncObject = encode(bound_object, Object),
@@ -72,13 +92,21 @@ encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
 
     end;
 
-encode(static_update_objects, {Clock, Properties, Updates}) ->
-    EncTransaction = encode(start_transaction, {Clock, Properties}),
+encode(static_update_objects, {Clock, Properties, Updates, proto_buf}) ->
+    EncTransaction = encode(start_transaction, {Clock, Properties, protobuf}),
     EncUpdates = lists:map(fun(Update) ->
                                   encode(update_op, Update) end,
                           Updates),
     #apbstaticupdateobjects{transaction = EncTransaction,
                             updates = EncUpdates};
+
+encode(static_update_objects, {Clock, Properties, Updates, json}) ->
+    EncTransaction = [{start_transaction, [vectorclock:to_json(Clock), encode_json(txn_properties, Properties)]}],
+    EncUpdates = lists:map(fun(Update) ->
+                                  encode_json(update_op, Update) end,
+                          Updates),
+    JReq = [{static_update_objects, [EncUpdates, EncTransaction]}],
+    #apbjsonrequest{value=jsx:encode(JReq)};
 
 encode(bound_object, {Key, Type, Bucket}) ->
     #apbboundobject{key=Key, type=encode(type,Type), bucket=Bucket};
@@ -120,14 +148,20 @@ encode(set_update, {remove_all, Elems}) ->
                         Elems),
     #apbsetupdate{optype = 4, rems = BinElems};
 
-encode(read_objects, {Objects, TxId}) ->
+encode(read_objects, {Objects, TxId, proto_buf}) ->
     BoundObjects = lists:map(fun(Object) ->
                                      encode(bound_object, Object) end,
                              Objects),
     #apbreadobjects{boundobjects = BoundObjects, transaction_descriptor = TxId};
 
+encode(read_objects, {Objects, TxId, json}) ->
+    BoundObjects = lists:map(fun(Object) ->
+                                     encode_json(bound_object, Object) end,
+                             Objects),
+    JReq = [{read_objects, [BoundObjects, json_utilities:txid_to_json(TxId)]}],
+    #apbjsonrequest{value=jsx:encode(JReq)};
 
-encode(static_read_objects, {Clock, Properties, Objects}) ->
+encode(static_read_objects, {Clock, Properties, Objects, proto_buf}) ->
     EncTransaction = encode(start_transaction, {Clock, Properties}),
     EncObjects = lists:map(fun(Object) ->
                                      encode(bound_object, Object) end,
@@ -135,32 +169,67 @@ encode(static_read_objects, {Clock, Properties, Objects}) ->
     #apbstaticreadobjects{transaction = EncTransaction,
                           objects = EncObjects};
 
+encode(static_read_objects, {Clock, Properties, Objects, json}) ->
+    EncTransaction = [{start_transaction, [vectorclock:to_json(Clock), encode_json(txn_properties, Properties)]}],
+    EncObjects = lists:map(fun(O) ->
+				   encode_json(bound_object, O) end,
+			   Objects),
+    JReq = [{static_update_objects, [EncObjects, EncTransaction]}],
+    #apbjsonrequest{value=jsx:encode(JReq)};
+
 encode(start_transaction_response, {error, Reason}) ->
     #apbstarttransactionresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(start_transaction_response_json, {error, Reason}) ->
+    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
 
 encode(start_transaction_response, {ok, TxId}) ->
     #apbstarttransactionresp{success=true, transaction_descriptor=term_to_binary(TxId)};
 
+encode(start_transaction_response_json, {ok, TxId}) ->
+    #apbjsonresp{value = jsx:encode([{ok, json_utilities:txid_to_json(TxId)}])};
+
 encode(operation_response, {error, Reason}) ->
     #apboperationresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(operation_response_json, {error, Reason}) ->
+    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
 
 encode(operation_response, ok) ->
     #apboperationresp{success=true};
 
+encode(operation_response_json, ok) ->
+    #apbjsonresp{value=jsx:encode(ok)};
+
 encode(commit_response, {error, Reason}) ->
     #apbcommitresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(commit_response_json, {error, Reason}) ->
+    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
 
 encode(commit_response, {ok, CommitTime}) ->
     #apbcommitresp{success=true, commit_time= term_to_binary(CommitTime)};
 
+encode(commit_response_json, {ok, {DCID,CT}}) ->
+    #apbjsonresp{value=jsx:encode([{commit_time,[json_utilities:dcid_to_json(DCID),CT]}])};
+
 encode(read_objects_response, {error, Reason}) ->
     #apbreadobjectsresp{success=false, errorcode = encode(error_code, Reason)};
+
+encode(read_objects_response_json, {error, Reason}) ->
+    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
 
 encode(read_objects_response, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
                                    encode(read_object_resp, R) end,
                            Results),
     #apbreadobjectsresp{success=true, objects = EncResults};
+
+encode(read_objects_response_json, {ok, Results}) ->
+    EncResults = lists:map(fun(R) ->
+                                   encode_json(read_object_resp, R) end,
+                           Results),
+    #apbjsonresp{value=jsx:encode([{success,EncResults}])};
 
 encode(read_object_resp, {{_Key, riak_dt_lwwreg, _Bucket}, Val}) ->
     #apbreadobjectresp{reg=#apbgetregresp{value=term_to_binary(Val)}};
@@ -182,8 +251,12 @@ encode(static_read_objects_response, {ok, Results, CommitTime}) ->
        objects = encode(read_objects_response, {ok, Results}),
        committime = encode(commit_response, {ok, CommitTime})};
 
-
-
+encode(static_read_objects_response_json, {ok, Results, {DCID,CT}}) ->
+    EncResults = lists:map(fun(R) ->
+                                   encode_json(read_object_resp, R) end,
+                           Results),
+    EncCT = [{commit_time,[json_utilities:dcid_to_json(DCID),CT]}],
+    #apbjsonresp{value=jsx:encode([{success,[EncResults,EncCT]}])};
 
 
 %% For Legion clients
@@ -199,9 +272,9 @@ encode(get_objects, {Objects, ReplyType}) ->
 			     end, Objects),
     case ReplyType of
 	proto_buf ->
-	    #apbgetobjects{boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
+	    #apbgetobjects{boundobjects = BoundObjects};
 	json ->
-	    JReq = [{get_objects,[[{bountobjects,BoundObjects}],[{replytype,encode(replytype_code,ReplyType)}]]}],
+	    JReq = [{get_objects,[[{bountobjects,BoundObjects}]]}],
 	    #apbjsonrequest{value=jsx:encode(JReq)}
     end;
 
@@ -250,9 +323,9 @@ encode(get_log_operations, {ObjectClockTuples,ReplyType}) ->
 		    end, {[],[]}, ObjectClockTuples),
     case ReplyType of
 	proto_buf ->
-	    #apbgetlogoperations{timestamps = Clocks, boundobjects = BoundObjects, replytype = encode(replytype_code, ReplyType)};
+	    #apbgetlogoperations{timestamps = Clocks, boundobjects = BoundObjects};
 	json ->
-	    JReq = [{get_log_operations,[[{timestamps,Clocks}],[{boundobjects,BoundObjects}],[{replytype,encode(replytype_code,ReplyType)}]]}],
+	    JReq = [{get_log_operations,[[{timestamps,Clocks}],[{boundobjects,BoundObjects}]]}],
 	    #apbjsonrequest{value=jsx:encode(JReq)}
     end;
 
@@ -303,14 +376,20 @@ encode(error_code, _Other) -> 0;
 encode(_Other, _) ->
     erlang:error("Incorrect operation/Not yet implemented").
 
+encode_json(txn_properties, Properties) ->
+    [{txn_properties, Properties}];
 
+encode_json(update_op, {Object, Op, Param}) ->
+    [{update_op, [encode_json(bound_object,Object),Op,json_utilities:convert_to_json(Param)]}];
 
 encode_json(bound_object, {Key, Type, Bucket}) ->
     [{bound_object, [Key, Type, Bucket]}];
 
 encode_json(vectorclock, Clock) ->
-    vectorclock:to_json(Clock).
+    vectorclock:to_json(Clock);
 
+encode_json(read_object_resp, {{_Key, Type, _Bucket}, Val}) ->
+    [{object_type_and_val, [Type,json_utilities:convert_to_json(Val)]}].
 
 
 decode(txn_properties, _Properties) ->
@@ -410,6 +489,9 @@ decode_response(#apbstaticreadobjectsresp{objects = Objects,
 
 
 %% For legion clients
+
+
+
 decode_response(#apbjsonresp{value=Value}) ->
     case jsx:decode(Value,[{labels,atom}]) of
 	[{success, Resp}] ->
@@ -447,21 +529,48 @@ decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
 
 
-decode_json([{get_objects,[[{bountobjects,JBoundObjects}],[{replytype,ReplyTypeCode}]]}]) ->
-    ReplyType = decode(replytype_code,ReplyTypeCode),
+decode_json([{start_transaction, [JClock, JProperties]}]) ->
+    Clock = vectorclock:vectorclock_from_json(JClock),
+    Properties = decode_json(JProperties),
+    {start_transaction, Clock, Properties, json};
+
+decode_json([{abort_transaction, JTxId}]) ->
+    TxId = json_utilites:txid_from_json(JTxId),
+    {abort_transaction, TxId, json};
+
+decode_json([{commit_transaction, JTxId}]) ->
+    TxId = json_utilites:txid_from_json(JTxId),
+    {commit_transaction, TxId, json};
+
+decode_json([{update_objects, [JUpdates, JTxId]}]) ->
+    TxId = json_utilities:txid_from_json(JTxId),
+    Updates = lists:map(fun(JUp) ->
+				decode_json(JUp)
+			end, JUpdates),
+    {update_objects, TxId, Updates, json};
+
+decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
+    [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
+    Clock = vectorclock:vectorclock_from_json(JClock),
+    Properties = decode_json(JProperties),
+    Updates = lists:map(fun(JUp) ->
+				decode_json(JUp)
+			end, JUpdates),
+    {static_update_objects, Clock, Updates, Properties, json};
+    
+decode_json([{get_objects,[[{bountobjects,JBoundObjects}]]}]) ->
     BoundObjects = lists:map(fun(O) ->
 				     decode_json(O)
 			     end, JBoundObjects),
-    {get_objects, ReplyType,BoundObjects};
-decode_json([{get_log_operations,[[{timestamps,JClocks}],[{boundobjects,JBoundObjects}],[{replytype,ReplyTypeCode}]]}]) ->
-    ReplyType = decode(replytype_code,ReplyTypeCode),
+    {get_objects,BoundObjects,json};
+decode_json([{get_log_operations,[[{timestamps,JClocks}],[{boundobjects,JBoundObjects}]]}]) ->
     BoundObjects = lists:map(fun(O) ->
 				     decode_json(O)
 			     end, JBoundObjects),
     Clocks = lists:map(fun(O) ->
 			       decode_json(O)
 		       end, JClocks),
-    {get_log_operations, ReplyType,BoundObjects,Clocks};
+    {get_log_operations,BoundObjects,Clocks,json};
 
 decode_json([{get_objects_resp, Objects}]) ->
     io:format("the json log resp: ~p", [Objects]),
@@ -479,10 +588,21 @@ decode_json([{get_log_operations_resp, Objects}]) ->
 		  end, Objects),
     {get_log_operations, Resps};
 
+decode_json([{txn_properties,Properties}]) ->
+    Properties;
+decode_json([{update_op, [BoundObject,Op,Param]}]) ->
+    {decode_json(BoundObject),Op,json_utilities:convert_from_json(Param)};
+
+
 decode_json([{bound_object, [Key, Type, Bucket]}]) ->
     {Key,json_utilities:type_from_json(Type),Bucket};
 decode_json([{vectorclock,Elements}]) ->
     vectorclock:from_json([{vectorclock,Elements}]);
+
+decode_json([{object_type_and_val,[JType,JVal]}]) ->
+    Type = json_utilities:type_from_json(JType),
+    Val = json_utilities:deconvert_from_json(JVal),
+    {Type,Val};
 
 decode_json(Other) ->
     erlang:error("Unexpected json message: ~p",[Other]).
