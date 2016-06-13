@@ -82,7 +82,7 @@ message ApbUpdateObjects {
 
 // Start Transaction
 message ApbStartTransaction {
-        required bytes timestamp = 1;
+        required ApbVectorclock timestamp = 1;
         optional ApbTxnProperties properties = 2;
 }
 
