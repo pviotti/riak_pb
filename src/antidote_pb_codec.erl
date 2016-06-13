@@ -35,11 +35,11 @@
 -define(TYPE_SET, set).
 
 encode(start_transaction, {Clock, Properties, proto_buf}) ->
-    #apbstarttransaction{timestamp=Clock,
+    #apbstarttransaction{timestamp=encode(vectorclock,Clock),
                          properties = encode(txn_properties, Properties)};
 
 encode(start_transaction, {Clock, Properties, json}) ->
-    JReq = [{start_transaction, [vectorclock:to_json(Clock), encode_json(txn_properties, Properties)]}],
+    JReq = [{start_transaction, [encode_json(vectorclock,Clock), encode_json(txn_properties, Properties)]}],
     #apbjsonrequest{value=jsx:encode(JReq)};
 
 encode(txn_properties, _) ->
@@ -101,7 +101,7 @@ encode(static_update_objects, {Clock, Properties, Updates, proto_buf}) ->
                             updates = EncUpdates};
 
 encode(static_update_objects, {Clock, Properties, Updates, json}) ->
-    EncTransaction = [{start_transaction, [vectorclock:to_json(Clock), encode_json(txn_properties, Properties)]}],
+    EncTransaction = [{start_transaction, [encode_json(vectorclock,Clock), encode_json(txn_properties, Properties)]}],
     EncUpdates = lists:map(fun(Update) ->
                                   encode_json(update_op, Update) end,
                           Updates),
@@ -113,7 +113,11 @@ encode(bound_object, {Key, Type, Bucket}) ->
 
 encode(vectorclock, Clock) ->
     %% Fix this
-    #apbvectorclock{value=term_to_binary(Clock)};
+    BClock = case is_binary(Clock) of
+		 true -> Clock;
+		 false -> term_to_binary(Clock)
+	     end,
+    #apbvectorclock{value=BClock};
 
 encode(type, riak_dt_pncounter) -> 0;
 encode(type, riak_dt_gcounter) -> 1;
@@ -170,7 +174,7 @@ encode(static_read_objects, {Clock, Properties, Objects, proto_buf}) ->
                           objects = EncObjects};
 
 encode(static_read_objects, {Clock, Properties, Objects, json}) ->
-    EncTransaction = [{start_transaction, [vectorclock:to_json(Clock), encode_json(txn_properties, Properties)]}],
+    EncTransaction = [{start_transaction, [encode_json(vectorclock,Clock), encode_json(txn_properties, Properties)]}],
     EncObjects = lists:map(fun(O) ->
 				   encode_json(bound_object, O) end,
 			   Objects),
@@ -312,7 +316,7 @@ encode(get_object_resp, {{_Key, _Type, _Bucket}, {Val,CommitTime}}) ->
 
 encode(get_object_resp_json, {{_Key, Type, _Bucket}, {Val,CommitTime}}) ->
     JsonVal = Type:to_json(Val),
-    JsonClock = vectorclock:to_json(CommitTime),
+    JsonClock = encode_json(vectorclock,CommitTime),
     [{object_and_clock, [JsonVal,JsonClock]}];
 
 
@@ -392,7 +396,12 @@ encode_json(bound_object, {Key, Type, Bucket}) ->
     [{bound_object, [Key, Type, Bucket]}];
 
 encode_json(vectorclock, Clock) ->
-    vectorclock:to_json(Clock);
+    case Clock of
+	ignore ->
+	    ignore;
+	_ ->
+	    vectorclock:to_json(Clock)
+    end;
 
 encode_json(read_object_resp, {{_Key, Type, _Bucket}, Val}) ->
     [{object_type_and_val, [Type,json_utilities:convert_to_json(Val)]}].
@@ -416,7 +425,12 @@ decode(replytype_code, 0) -> proto_buf;
 decode(replytype_code, 1) -> json;
 
 decode(vectorclock, #apbvectorclock{value = BClock}) ->
+    %% This should be fixed
     binary_to_term(BClock);
+decode(vectorclock, BClock) ->
+    %% This should be removed eventually
+    binary_to_term(BClock);
+
 
 decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp, 
                 regop = RegOp}) ->
@@ -516,7 +530,7 @@ decode_response(#apbobjectresp{value = Val}) ->
     %% {object, jsx:decode(Val,[{labels,atom}])};
     {object, binary_to_term(Val)};
 decode_response([{object_and_clock, [Object,Clock]}]) ->
-    {object, [json_utilities:crdt_from_json(Object),vectorclock:from_json(Clock)]};
+    {object, [json_utilities:crdt_from_json(Object),decode_json(Clock)]};
 
 
 decode_response(#apbgetlogoperationsresp{success=false, errorcode=Reason}) ->
@@ -533,7 +547,7 @@ decode_response(Other) ->
 
 
 decode_json([{start_transaction, [JClock, JProperties]}]) ->
-    Clock = vectorclock:vectorclock_from_json(JClock),
+    Clock = decode_json(JClock),
     Properties = decode_json(JProperties),
     {start_transaction, Clock, Properties, json};
 
@@ -554,7 +568,7 @@ decode_json([{update_objects, [JUpdates, JTxId]}]) ->
 
 decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
     [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
-    Clock = vectorclock:vectorclock_from_json(JClock),
+    Clock = decode_json(JClock),
     Properties = decode_json(JProperties),
     Updates = lists:map(fun(JUp) ->
 				decode_json(JUp)
@@ -599,6 +613,8 @@ decode_json([{update_op, [BoundObject,Op,Param]}]) ->
 
 decode_json([{bound_object, [Key, Type, Bucket]}]) ->
     {Key,json_utilities:type_from_json(Type),Bucket};
+decode_json(ignore) ->
+    ignore;
 decode_json([{vectorclock,Elements}]) ->
     vectorclock:from_json([{vectorclock,Elements}]);
 
