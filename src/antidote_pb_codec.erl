@@ -61,7 +61,7 @@ encode(commit_transaction, {TxId,json}) ->
     JReq = [{commit_transaction, json_utilities:txid_to_json(TxId)}],
     #apbjsonrequest{value=jsx:encode(JReq)};
 
-encode(update_objects, {Updates, TxId, protobuf}) ->
+encode(update_objects, {Updates, TxId, proto_buf}) ->
     EncUpdates = lists:map(fun(Update) ->
 				   encode(update_op, Update) end,
 			   Updates),
@@ -93,7 +93,7 @@ encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
     end;
 
 encode(static_update_objects, {Clock, Properties, Updates, proto_buf}) ->
-    EncTransaction = encode(start_transaction, {Clock, Properties, protobuf}),
+    EncTransaction = encode(start_transaction, {Clock, Properties, proto_buf}),
     EncUpdates = lists:map(fun(Update) ->
                                   encode(update_op, Update) end,
                           Updates),
