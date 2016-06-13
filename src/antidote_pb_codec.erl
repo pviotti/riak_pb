@@ -528,9 +528,6 @@ decode_response(#apbgetlogoperationsresp{success=true, objects = Objects}) ->
     {get_log_operations, Resps};
 decode_response(#apblogoperationresp{value = Val}) ->
     {log_operations, erlang:binary_to_term(Val)};
-decode_response([{opid_and_payload,[OpId,Payload]}]) ->
-    io:format("opid and payload ~p", [[OpId,Payload]]),
-    {opid_and_payload, [OpId,json_utilities:clocksi_payload_from_json(Payload)]};
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
 
@@ -589,7 +586,7 @@ decode_json([{get_log_operations_resp, Objects}]) ->
     Resps =
 	lists:map(fun([{log_operations, Ops}]) ->
 			  lists:map(fun(O) ->
-					    decode_response(O)
+					    decode_json(O)
 				    end, Ops)
 		  end, Objects),
     {get_log_operations, Resps};
@@ -604,6 +601,11 @@ decode_json([{bound_object, [Key, Type, Bucket]}]) ->
     {Key,json_utilities:type_from_json(Type),Bucket};
 decode_json([{vectorclock,Elements}]) ->
     vectorclock:from_json([{vectorclock,Elements}]);
+
+decode_json([{opid_and_payload,[OpId,Payload]}]) ->
+    io:format("opid and payload ~p", [[OpId,Payload]]),
+    {opid_and_payload, [OpId,json_utilities:clocksi_payload_from_json(Payload)]};
+
 
 decode_json([{object_type_and_val,[JType,JVal]}]) ->
     Type = json_utilities:type_from_json(JType),
