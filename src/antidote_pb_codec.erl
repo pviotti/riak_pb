@@ -284,7 +284,7 @@ encode(get_objects, {Objects, ReplyType}) ->
 	proto_buf ->
 	    #apbgetobjects{boundobjects = BoundObjects};
 	json ->
-	    JReq = [{get_objects,[[{bountobjects,BoundObjects}]]}],
+	    JReq = [{get_objects,[[{boundobjects,BoundObjects}]]}],
 	    #apbjsonrequest{value=jsx:encode(JReq)}
     end;
 
@@ -578,7 +578,7 @@ decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
 			end, JUpdates),
     {static_update_objects, Clock, Updates, Properties, json};
     
-decode_json([{get_objects,[[{bountobjects,JBoundObjects}]]}]) ->
+decode_json([{get_objects,[[{boundobjects,JBoundObjects}]]}]) ->
     BoundObjects = lists:map(fun(O) ->
 				     decode_json(O)
 			     end, JBoundObjects),
@@ -610,14 +610,16 @@ decode_json([{get_log_operations_resp, Objects}]) ->
 
 decode_json([{txn_properties,Properties}]) ->
     lists:map(fun([Name,Value]) ->
-		      {Name,Value}
+		      {json_utilities:atom_from_json(Name),json_utilities:atom_from_json(Value)}
 	      end, Properties);
 decode_json([{update_op, [BoundObject,Op,Param]}]) ->
-    {decode_json(BoundObject),Op,json_utilities:convert_from_json(Param)};
+    {decode_json(BoundObject),json_utilities:atom_from_json(Op),json_utilities:convert_from_json(Param)};
 
 
 decode_json([{bound_object, [Key, Type, Bucket]}]) ->
-    {Key,json_utilities:type_from_json(Type),Bucket};
+    {Key,json_utilities:atom_from_json(Type),Bucket};
+decode_json(<<"ignore">>) ->
+    ignore;
 decode_json(ignore) ->
     ignore;
 decode_json([{vectorclock,Elements}]) ->
@@ -629,7 +631,7 @@ decode_json([{opid_and_payload,[OpId,Payload]}]) ->
 
 
 decode_json([{object_type_and_val,[JType,JVal]}]) ->
-    Type = json_utilities:type_from_json(JType),
+    Type = json_utilities:atom_from_json(JType),
     Val = json_utilities:deconvert_from_json(JVal),
     {Type,Val};
 
