@@ -191,7 +191,7 @@ encode(start_transaction_response, {ok, TxId}) ->
     #apbstarttransactionresp{success=true, transaction_descriptor=term_to_binary(TxId)};
 
 encode(start_transaction_response_json, {ok, TxId}) ->
-    #apbjsonresp{value = jsx:encode([{ok, json_utilities:txid_to_json(TxId)}])};
+    #apbjsonresp{value = jsx:encode([{success, [{start_transaction_resp, json_utilities:txid_to_json(TxId)}]}])};
 
 encode(operation_response, {error, Reason}) ->
     #apboperationresp{success=false, errorcode = encode(error_code, Reason)};
@@ -203,7 +203,7 @@ encode(operation_response, ok) ->
     #apboperationresp{success=true};
 
 encode(operation_response_json, ok) ->
-    #apbjsonresp{value=jsx:encode(ok)};
+    #apbjsonresp{value=jsx:encode([{success, ok}])};
 
 encode(commit_response, {error, Reason}) ->
     #apbcommitresp{success=false, errorcode = encode(error_code, Reason)};
@@ -215,7 +215,7 @@ encode(commit_response, {ok, CommitTime}) ->
     #apbcommitresp{success=true, commit_time= term_to_binary(CommitTime)};
 
 encode(commit_response_json, {ok, {DCID,CT}}) ->
-    #apbjsonresp{value=jsx:encode([{commit_time,[json_utilities:dcid_to_json(DCID),CT]}])};
+    #apbjsonresp{value=jsx:encode([{success, [{commit_resp, encode_json(commit_time, {DCID,CT})}]}])};
 
 encode(read_objects_response, {error, Reason}) ->
     #apbreadobjectsresp{success=false, errorcode = encode(error_code, Reason)};
@@ -233,7 +233,7 @@ encode(read_objects_response_json, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
                                    encode_json(read_object_resp, R) end,
                            Results),
-    #apbjsonresp{value=jsx:encode([{success,EncResults}])};
+    #apbjsonresp{value=jsx:encode([{success,[{read_objects_resp,EncResults}]}])};
 
 encode(read_object_resp, {{_Key, riak_dt_lwwreg, _Bucket}, Val}) ->
     #apbreadobjectresp{reg=#apbgetregresp{value=term_to_binary(Val)}};
@@ -266,7 +266,7 @@ encode(static_read_objects_response_json, {ok, Results, {DCID,CT}}) ->
                                    encode_json(read_object_resp, R) end,
                            Results),
     EncCT = [{commit_time,[json_utilities:dcid_to_json(DCID),CT]}],
-    #apbjsonresp{value=jsx:encode([{success,[EncResults,EncCT]}])};
+    #apbjsonresp{value=jsx:encode([{success,[{static_read_objects_resp,[EncResults,EncCT]}]}])};
 
 
 %% For Legion clients
@@ -405,6 +405,9 @@ encode_json(vectorclock, Clock) ->
 	_ ->
 	    vectorclock:to_json(Clock)
     end;
+
+encode_json(commit_time, {DCID,CT}) ->
+    [{commit_time,[json_utilities:dcid_to_json(DCID),CT]}];
 
 encode_json(read_object_resp, {{_Key, Type, _Bucket}, Val}) ->
     [{object_type_and_val, [Type,json_utilities:convert_to_json(Val)]}].
@@ -549,18 +552,32 @@ decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
 
 
+decode_json(<<"ok">>) ->
+    {opresponse, ok};
+decode_json(ok) ->
+    {opresponse, ok};
+
 decode_json([{start_transaction, [JClock, JProperties]}]) ->
     Clock = decode_json(JClock),
     Properties = decode_json(JProperties),
     {start_transaction, Clock, Properties, json};
 
+decode_json([{start_transaction_resp, JTxId}]) ->
+    {start_transaction, json_utilities:txid_from_json(JTxId)};
+
 decode_json([{abort_transaction, JTxId}]) ->
     TxId = json_utilites:txid_from_json(JTxId),
     {abort_transaction, TxId, json};
 
+decode_json([{abort_transaction_resp, Val}]) ->
+    {opresponse, json_utilities:atom_from_json(Val)};
+
 decode_json([{commit_transaction, JTxId}]) ->
     TxId = json_utilites:txid_from_json(JTxId),
     {commit_transaction, TxId, json};
+
+decode_json([{commit_resp,CT}]) ->
+    {commit_transaction,decode_json(CT)};
 
 decode_json([{update_objects, [JUpdates, JTxId]}]) ->
     TxId = json_utilities:txid_from_json(JTxId),
@@ -577,7 +594,20 @@ decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
 				decode_json(JUp)
 			end, JUpdates),
     {static_update_objects, Clock, Updates, Properties, json};
-    
+
+decode_json([{read_objects_resp,EncResults}]) ->
+    Results = lists:map(fun([{object_type_and_val, [Type,Val]}]) ->
+				{json_utilities:atom_from_json(Type),json_utilities:deconvert_from_json(Val)} end,
+			EncResults),
+    {read_objects,Results};
+
+decode_json([{static_read_objects_resp, [EncResults,EncCT]}]) ->
+    Results = lists:map(fun([{object_type_and_val, [Type,Val]}]) ->
+				{json_utilities:atom_from_json(Type),json_utilities:deconvert_from_json(Val)} end,
+			EncResults),
+    CT = decode_json(EncCT),
+    {static_read_objects_resp, Results, CT};
+
 decode_json([{get_objects,[[{boundobjects,JBoundObjects}]]}]) ->
     BoundObjects = lists:map(fun(O) ->
 				     decode_json(O)
@@ -624,6 +654,8 @@ decode_json(ignore) ->
     ignore;
 decode_json([{vectorclock,Elements}]) ->
     vectorclock:from_json([{vectorclock,Elements}]);
+decode_json([{commit_time,[JDCID,JCT]}]) ->
+    {json_utilities:dcid_from_json(JDCID),JCT};
 
 decode_json([{opid_and_payload,[OpId,Payload]}]) ->
     io:format("opid and payload ~p", [[OpId,Payload]]),
