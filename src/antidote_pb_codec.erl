@@ -270,7 +270,7 @@ encode(static_read_objects_response_json, {ok, Results, {DCID,CT}}) ->
 encode(get_objects, {Objects, ReplyType}) ->
     BoundObjects = lists:map(fun(Object) ->
 				     case ReplyType of
-					 profobuf ->
+					 proto_buf ->
 					     encode(bound_object, Object);
 					 json ->
 					     encode_json(bound_object, Object)
