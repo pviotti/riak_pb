@@ -162,7 +162,7 @@ encode(read_objects, {Objects, TxId, json}) ->
     #apbjsonrequest{value=jsx:encode(JReq)};
 
 encode(static_read_objects, {Clock, Properties, Objects, proto_buf}) ->
-    EncTransaction = encode(start_transaction, {Clock, Properties}),
+    EncTransaction = encode(start_transaction, {Clock, Properties, proto_buf}),
     EncObjects = lists:map(fun(Object) ->
                                      encode(bound_object, Object) end,
                              Objects),
@@ -622,7 +622,7 @@ start_transaction_test() ->
     Clock = term_to_binary(ignore),
     Properties = {},
     EncRecord = antidote_pb_codec:encode(start_transaction,
-                                         {Clock, Properties}),
+                                         {Clock, Properties, proto_buf}),
     [MsgCode, MsgData] = riak_pb_codec:encode(EncRecord),
     Msg = riak_pb_codec:decode(MsgCode, list_to_binary(MsgData)),
     ?assertMatch(true, is_record(Msg,apbstarttransaction)),
@@ -636,7 +636,7 @@ read_transaction_test() ->
                {<<"key2">>, riak_dt_orset, <<"bucket2">>}],
     TxId = term_to_binary({12}),
          %% Dummy value, structure of TxId is opaque to client
-    EncRecord = antidote_pb_codec:encode(read_objects, {Objects, TxId}),
+    EncRecord = antidote_pb_codec:encode(read_objects, {Objects, TxId, proto_buf}),
     ?assertMatch(true, is_record(EncRecord, apbreadobjects)),
     [MsgCode, MsgData] = riak_pb_codec:encode(EncRecord),
     Msg = riak_pb_codec:decode(MsgCode, list_to_binary(MsgData)),
@@ -673,7 +673,7 @@ update_types_test() ->
               ],
     TxId = term_to_binary({12}),
          %% Dummy value, structure of TxId is opaque to client
-    EncRecord = antidote_pb_codec:encode(update_objects, {Updates, TxId}),
+    EncRecord = antidote_pb_codec:encode(update_objects, {Updates, TxId, proto_buf}),
     ?assertMatch(true, is_record(EncRecord, apbupdateobjects)),
     [MsgCode, MsgData] = riak_pb_codec:encode(EncRecord),
     Msg = riak_pb_codec:decode(MsgCode, list_to_binary(MsgData)),
