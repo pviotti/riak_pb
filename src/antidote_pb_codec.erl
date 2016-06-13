@@ -527,7 +527,7 @@ decode_response(#apbgetlogoperationsresp{success=true, objects = Objects}) ->
                       Objects),
     {get_log_operations, Resps};
 decode_response(#apblogoperationresp{value = Val}) ->
-    {log_operations, erlang:binary_to_term(Val)};
+    erlang:binary_to_term(Val);
 decode_response(Other) ->
     erlang:error("Unexpected message: ~p",[Other]).
 
