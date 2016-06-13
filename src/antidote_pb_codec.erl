@@ -387,7 +387,10 @@ encode(_Other, _) ->
     erlang:error("Incorrect operation/Not yet implemented").
 
 encode_json(txn_properties, Properties) ->
-    [{txn_properties, Properties}];
+    JProp = lists:map(fun({Name,Value}) ->
+			      [Name,Value]
+		      end, Properties),
+    [{txn_properties, JProp}];
 
 encode_json(update_op, {Object, Op, Param}) ->
     [{update_op, [encode_json(bound_object,Object),Op,json_utilities:convert_to_json(Param)]}];
@@ -408,7 +411,7 @@ encode_json(read_object_resp, {{_Key, Type, _Bucket}, Val}) ->
 
 
 decode(txn_properties, _Properties) ->
-    {};
+    [];
 decode(bound_object, #apbboundobject{key = Key, type=Type, bucket=Bucket}) ->
     {Key, decode(type, Type), Bucket};
 
@@ -606,7 +609,9 @@ decode_json([{get_log_operations_resp, Objects}]) ->
     {get_log_operations, Resps};
 
 decode_json([{txn_properties,Properties}]) ->
-    Properties;
+    lists:map(fun([Name,Value]) ->
+		      {Name,Value}
+	      end, Properties);
 decode_json([{update_op, [BoundObject,Op,Param]}]) ->
     {decode_json(BoundObject),Op,json_utilities:convert_from_json(Param)};
 
