@@ -147,7 +147,6 @@ message ApbVectorclock {
 
 // Objects to be read
 message ApbGetObjects {
-	required uint32 replytype = 1;
         repeated ApbBoundObject boundobjects = 2;
 }
 
@@ -165,7 +164,6 @@ message ApbGetObjectsResp {
 
 // Objects to get log operations for
 message ApbGetLogOperations {
-    required uint32 replytype = 1;
     repeated ApbVectorclock timestamps = 2;
     repeated ApbBoundObject boundobjects = 3;
 }
