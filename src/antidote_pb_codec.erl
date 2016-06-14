@@ -595,11 +595,27 @@ decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
 			end, JUpdates),
     {static_update_objects, Clock, Updates, Properties, json};
 
+decode_json([{read_objects, JBoundObjects, JTxId}]) ->
+    BoundObjects = lists:map(fun(JObject) ->
+				     decode_json(JObject)
+			     end, JBoundObjects),
+    TxId = json_utilities:txid_from_json(JTxId),
+    {read_objects,BoundObjects,TxId,json};
+
 decode_json([{read_objects_resp,EncResults}]) ->
     Results = lists:map(fun([{object_type_and_val, [Type,Val]}]) ->
 				{json_utilities:atom_from_json(Type),json_utilities:deconvert_from_json(Val)} end,
 			EncResults),
     {read_objects,Results};
+
+decode_json([{static_read_objects, [JObjects, JTransaction]}]) ->
+    [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
+    Clock = decode_json(JClock),
+    Properties = decode_json(JProperties),
+    Objects = lists:map(fun(JObject) ->
+				decode_json(JObject)
+			end, JObjects),
+    {static_read_objects, Clock, Properties, Objects, json};
 
 decode_json([{static_read_objects_resp, [EncResults,EncCT]}]) ->
     Results = lists:map(fun([{object_type_and_val, [Type,Val]}]) ->
