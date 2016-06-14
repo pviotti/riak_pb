@@ -595,7 +595,7 @@ decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
 			end, JUpdates),
     {static_update_objects, Clock, Updates, Properties, json};
 
-decode_json([{read_objects, JBoundObjects, JTxId}]) ->
+decode_json([{read_objects, [JBoundObjects, JTxId]}]) ->
     BoundObjects = lists:map(fun(JObject) ->
 				     decode_json(JObject)
 			     end, JBoundObjects),
