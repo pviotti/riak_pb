@@ -566,14 +566,14 @@ decode_json([{start_transaction_resp, JTxId}]) ->
     {start_transaction, json_utilities:txid_from_json(JTxId)};
 
 decode_json([{abort_transaction, JTxId}]) ->
-    TxId = json_utilites:txid_from_json(JTxId),
+    TxId = json_utilities:txid_from_json(JTxId),
     {abort_transaction, TxId, json};
 
 decode_json([{abort_transaction_resp, Val}]) ->
     {opresponse, json_utilities:atom_from_json(Val)};
 
 decode_json([{commit_transaction, JTxId}]) ->
-    TxId = json_utilites:txid_from_json(JTxId),
+    TxId = json_utilities:txid_from_json(JTxId),
     {commit_transaction, TxId, json};
 
 decode_json([{commit_resp,CT}]) ->
