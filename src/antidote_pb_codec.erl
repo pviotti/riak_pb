@@ -587,9 +587,10 @@ decode_json([{update_objects, [JUpdates, JTxId]}]) ->
     {update_objects, Updates, TxId, json};
 
 decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
-    [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
-    Clock = decode_json(JClock),
-    Properties = decode_json(JProperties),
+    {start_transaction, Clock, Properties, json} = decode_json(JTransaction),
+    %% [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
+    %% Clock = decode_json(JClock),
+    %% Properties = decode_json(JProperties),
     Updates = lists:map(fun(JUp) ->
 				decode_json(JUp)
 			end, JUpdates),
@@ -609,9 +610,10 @@ decode_json([{read_objects_resp,EncResults}]) ->
     {read_objects,Results};
 
 decode_json([{static_read_objects, [JObjects, JTransaction]}]) ->
-    [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
-    Clock = decode_json(JClock),
-    Properties = decode_json(JProperties),
+    {start_transaction, Clock, Properties, json} = decode_json(JTransaction),
+    %% [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
+    %% Clock = decode_json(JClock),
+    %% Properties = decode_json(JProperties),
     Objects = lists:map(fun(JObject) ->
 				decode_json(JObject)
 			end, JObjects),
