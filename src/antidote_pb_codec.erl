@@ -178,7 +178,7 @@ encode(static_read_objects, {Clock, Properties, Objects, json}) ->
     EncObjects = lists:map(fun(O) ->
 				   encode_json(bound_object, O) end,
 			   Objects),
-    JReq = [{static_update_objects, [EncObjects, EncTransaction]}],
+    JReq = [{static_read_objects, [EncObjects, EncTransaction]}],
     #apbjsonrequest{value=jsx:encode(JReq)};
 
 encode(start_transaction_response, {error, Reason}) ->
