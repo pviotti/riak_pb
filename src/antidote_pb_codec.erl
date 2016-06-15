@@ -185,7 +185,7 @@ encode(start_transaction_response, {error, Reason}) ->
     #apbstarttransactionresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(start_transaction_response_json, {error, Reason}) ->
-    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
+    #apbjsonresp{value=jsx:encode([{error, encode(error_code, Reason)}])};
 
 encode(start_transaction_response, {ok, TxId}) ->
     #apbstarttransactionresp{success=true, transaction_descriptor=term_to_binary(TxId)};
@@ -197,7 +197,7 @@ encode(operation_response, {error, Reason}) ->
     #apboperationresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(operation_response_json, {error, Reason}) ->
-    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
+    #apbjsonresp{value=jsx:encode([{error, encode(error_code, Reason)}])};
 
 encode(operation_response, ok) ->
     #apboperationresp{success=true};
@@ -209,7 +209,7 @@ encode(commit_response, {error, Reason}) ->
     #apbcommitresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(commit_response_json, {error, Reason}) ->
-    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
+    #apbjsonresp{value=jsx:encode([{error, encode(error_code, Reason)}])};
 
 encode(commit_response, {ok, CommitTime}) ->
     #apbcommitresp{success=true, commit_time= term_to_binary(CommitTime)};
@@ -221,7 +221,7 @@ encode(read_objects_response, {error, Reason}) ->
     #apbreadobjectsresp{success=false, errorcode = encode(error_code, Reason)};
 
 encode(read_objects_response_json, {error, Reason}) ->
-    #apbjsonresp{value=jsx:encode([{error, errorcode = encode(error_code, Reason)}])};
+    #apbjsonresp{value=jsx:encode([{error, encode(error_code, Reason)}])};
 
 encode(read_objects_response, {ok, Results}) ->
     EncResults = lists:map(fun(R) ->
