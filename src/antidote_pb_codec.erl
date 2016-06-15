@@ -659,7 +659,7 @@ decode_json([{txn_properties,Properties}]) ->
 		      {json_utilities:atom_from_json(Name),json_utilities:atom_from_json(Value)}
 	      end, Properties);
 decode_json([{update_op, [BoundObject,Op,Param]}]) ->
-    {decode_json(BoundObject),json_utilities:atom_from_json(Op),json_utilities:convert_from_json(Param)};
+    {decode_json(BoundObject),json_utilities:atom_from_json(Op),json_utilities:deconvert_from_json(Param)};
 
 
 decode_json([{bound_object, [Key, Type, Bucket]}]) ->
