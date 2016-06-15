@@ -214,8 +214,8 @@ encode(commit_response_json, {error, Reason}) ->
 encode(commit_response, {ok, CommitTime}) ->
     #apbcommitresp{success=true, commit_time= term_to_binary(CommitTime)};
 
-encode(commit_response_json, {ok, {DCID,CT}}) ->
-    #apbjsonresp{value=jsx:encode([{success, [{commit_resp, encode_json(commit_time, {DCID,CT})}]}])};
+encode(commit_response_json, {ok, CommitTime}) ->
+    #apbjsonresp{value=jsx:encode([{success, [{commit_resp, encode_json(vectorclock,CommitTime)}]}])};
 
 encode(read_objects_response, {error, Reason}) ->
     #apbreadobjectsresp{success=false, errorcode = encode(error_code, Reason)};
@@ -261,11 +261,11 @@ encode(static_read_objects_response, {ok, Results, CommitTime}) ->
        objects = encode(read_objects_response, {ok, Results}),
        committime = encode(commit_response, {ok, CommitTime})};
 
-encode(static_read_objects_response_json, {ok, Results, {DCID,CT}}) ->
+encode(static_read_objects_response_json, {ok, Results, CT}) ->
     EncResults = lists:map(fun(R) ->
                                    encode_json(read_object_resp, R) end,
                            Results),
-    EncCT = [{commit_time,[json_utilities:dcid_to_json(DCID),CT]}],
+    EncCT = encode_json(vectorclock, CT),
     #apbjsonresp{value=jsx:encode([{success,[{static_read_objects_resp,[EncResults,EncCT]}]}])};
 
 
@@ -383,8 +383,8 @@ encode(error_code, unknown) -> 0;
 encode(error_code, timeout) -> 1;
 encode(error_code, _Other) -> 0;
 
-encode(_Other, _) ->
-    erlang:error("Incorrect operation/Not yet implemented").
+encode(Other, Op) ->
+    erlang:error("Incorrect operation/Not yet implemented, type ~p, operation ~p", [Other,Op]).
 
 encode_json(txn_properties, Properties) ->
     JProp = lists:map(fun({Name,Value}) ->
