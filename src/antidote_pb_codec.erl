@@ -584,7 +584,7 @@ decode_json([{update_objects, [JUpdates, JTxId]}]) ->
     Updates = lists:map(fun(JUp) ->
 				decode_json(JUp)
 			end, JUpdates),
-    {update_objects, TxId, Updates, json};
+    {update_objects, Updates, TxId, json};
 
 decode_json([{static_update_objects, [JUpdates, JTransaction]}]) ->
     [{start_transaction, [[{timestamp,JClock}], JProperties]}] = JTransaction,
