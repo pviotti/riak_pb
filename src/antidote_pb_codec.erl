@@ -415,9 +415,8 @@ encode_json(txn_properties, Properties) ->
 					  dont_certify ->
 					      [certify, dont_certify]
 				      end;
-				  static ->
-				      %% Static transactions don't currently have a property
-				      []
+				  static when is_boolean(Value) ->
+				      [static, Value]
 			      end
 		      end, Properties),
     [{txn_properties, JProp}];
