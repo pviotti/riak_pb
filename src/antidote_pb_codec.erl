@@ -42,10 +42,12 @@ encode(start_transaction, {Clock, Properties, json}) ->
     JReq = [{start_transaction, [encode_json(vectorclock,Clock), encode_json(txn_properties, Properties)]}],
     #apbjsonrequest{value=jsx:encode(JReq)};
 
-encode(txn_properties, _) ->
- %%TODO: Add more property paramaeters
- #apbtxnproperties{};
-
+encode(txn_properties, Properties) ->
+    %%TODO: Add more property paramaeters
+    InitProp = #apbtxnproperties{},
+    lists:foldl(fun({Property,Value}, Prop) ->
+			encode_txn_property(Property,Value,Prop)
+		end, InitProp, Properties);
 
 encode(abort_transaction, {TxId, proto_buf}) ->
     #apbaborttransaction{transaction_descriptor = TxId};
@@ -386,9 +388,31 @@ encode(error_code, _Other) -> 0;
 encode(Other, Op) ->
     erlang:error("Incorrect operation/Not yet implemented, type ~p, operation ~p", [Other,Op]).
 
+%% Encoding for txn properties
+encode_txn_property(update_clock, Bool, PropertyRecord) when is_boolean(Bool) ->
+    PropertyRecord#apbtxnproperties{update_clock=Bool};
+encode_txn_property(certify, use_default, PropertyRecord) -> 
+    PropertyRecord#apbtxnproperties{certify=0};
+encode_txn_property(certify, certify, PropertyRecord) ->
+    PropertyRecord#apbtxnproperties{certify=1};
+encode_txn_property(certiy, dont_certify, PropertyRecord) ->
+    PropertyRecord#apbtxnproperties{certify=2}.
+
 encode_json(txn_properties, Properties) ->
     JProp = lists:map(fun({Name,Value}) ->
-			      [Name,Value]
+			      case Name of
+				  update_clock when is_boolean(Value) ->
+				      [update_clock,Value];
+				  certify ->
+				      case Value of
+					  use_default ->
+					      [certify, use_default];
+					  certify ->
+					      [certify, certify];
+					  dont_certify ->
+					      [certify, dont_certify]
+				      end
+			      end
 		      end, Properties),
     [{txn_properties, JProp}];
 
@@ -413,8 +437,9 @@ encode_json(read_object_resp, {{_Key, Type, _Bucket}, Val}) ->
     [{object_type_and_val, [Type,json_utilities:convert_to_json(Val)]}].
 
 
-decode(txn_properties, _Properties) ->
-    [];
+decode(txn_properties, #apbtxnproperties{update_clock=UpdateClock, certify=Certify}) ->
+    lager:info("property update clock: ~p, certify: ~p", [UpdateClock,Certify]),
+    [{update_clock, decode_txn_property(update_clock,UpdateClock)}, {certify, decode_txn_property(certify,Certify)}];
 decode(bound_object, #apbboundobject{key = Key, type=Type, bucket=Bucket}) ->
     {Key, decode(type, Type), Bucket};
 
@@ -480,6 +505,14 @@ decode(set_update, #apbsetupdate{optype = Op, adds = A, rems = R}) ->
 
 decode(_Other, _) ->
     erlang:error("Unknown message").
+
+%% Decoding txn_properties
+decode_txn_property(update_clock, Bool) when is_boolean(Bool) ->
+    Bool;
+decode_txn_property(certify, 0) -> use_default;
+decode_txn_property(certify, 1) -> certify;
+decode_txn_property(certiy, 2) -> dont_certify.
+
 
 decode_response(#apboperationresp{success = true}) ->
     {opresponse, ok};
