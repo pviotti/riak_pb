@@ -414,7 +414,10 @@ encode_json(txn_properties, Properties) ->
 					      [certify, certify];
 					  dont_certify ->
 					      [certify, dont_certify]
-				      end
+				      end;
+				  static ->
+				      %% Static transactions don't currently have a property
+				      []
 			      end
 		      end, Properties),
     [{txn_properties, JProp}];
