@@ -436,10 +436,17 @@ encode_json(commit_time, {DCID,CT}) ->
 encode_json(read_object_resp, {{_Key, Type, _Bucket}, Val}) ->
     [{object_type_and_val, [Type,json_utilities:convert_to_json(Val)]}].
 
-
 decode(txn_properties, #apbtxnproperties{update_clock=UpdateClock, certify=Certify}) ->
-    lager:info("property update clock: ~p, certify: ~p", [UpdateClock,Certify]),
-    [{update_clock, decode_txn_property(update_clock,UpdateClock)}, {certify, decode_txn_property(certify,Certify)}];
+    Prop1 = case UpdateClock of
+		undefined -> [];
+		_ -> [{update_clock, decode_txn_property(update_clock, UpdateClock)}]
+	    end,
+    Prop2 = case Certify of
+		undefined -> [];
+		_ -> [{certify,decode_txn_property(certify, Certify)}]
+	    end,
+    Prop1 ++ Prop2;
+
 decode(bound_object, #apbboundobject{key = Key, type=Type, bucket=Bucket}) ->
     {Key, decode(type, Type), Bucket};
 
