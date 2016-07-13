@@ -395,8 +395,11 @@ encode_txn_property(certify, use_default, PropertyRecord) ->
     PropertyRecord#apbtxnproperties{certify=0};
 encode_txn_property(certify, certify, PropertyRecord) ->
     PropertyRecord#apbtxnproperties{certify=1};
-encode_txn_property(certiy, dont_certify, PropertyRecord) ->
-    PropertyRecord#apbtxnproperties{certify=2}.
+encode_txn_property(certfiy, dont_certify, PropertyRecord) ->
+    PropertyRecord#apbtxnproperties{certify=2};
+encode_txn_property(static, Bool, PropertyRecord) when is_boolean(Bool) ->
+    %% Static transactions don't currently have a property
+    PropertyRecord.
 
 encode_json(txn_properties, Properties) ->
     JProp = lists:map(fun({Name,Value}) ->
