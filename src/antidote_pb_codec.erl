@@ -523,7 +523,7 @@ decode_txn_property(update_clock, Bool) when is_boolean(Bool) ->
     Bool;
 decode_txn_property(certify, 0) -> use_default;
 decode_txn_property(certify, 1) -> certify;
-decode_txn_property(certiy, 2) -> dont_certify.
+decode_txn_property(certify, 2) -> dont_certify.
 
 
 decode_response(#apboperationresp{success = true}) ->
