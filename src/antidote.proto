@@ -55,7 +55,12 @@ message ApbTxnProperties {
 // Object (Key) representation
 message ApbBoundObject {
   required bytes key = 1;
-  required uint32 type = 2;
+  enum CRDT_type {
+    COUNTER = 3;
+    ORSET = 4;
+    LWWREG = 5;
+  }
+  required CRDT_type type = 2;
   required bytes bucket = 3;
 }
 

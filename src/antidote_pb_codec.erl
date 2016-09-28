@@ -76,9 +76,9 @@ encode(static_update_objects, {Clock, Properties, Updates}) ->
 encode(bound_object, {Key, Type, Bucket}) ->
     #apbboundobject{key=Key, type=encode(type,Type), bucket=Bucket};
 
-encode(type, antidote_crdt_counter) -> 3;
-encode(type, antidote_crdt_orset) -> 4;
-encode(type, antidote_crdt_lwwreg) -> 5;
+encode(type, antidote_crdt_counter) -> 'COUNTER';
+encode(type, antidote_crdt_orset) -> 'ORSET';
+encode(type, antidote_crdt_lwwreg) -> 'LWWREG';
 
 encode(reg_update, {assign, Value}) ->
     #apbregupdate{optype = 1, value=Value};
@@ -176,13 +176,13 @@ decode(txn_properties, _Properties) ->
 decode(bound_object, #apbboundobject{key = Key, type=Type, bucket=Bucket}) ->
     {Key, decode(type, Type), Bucket};
 
-decode(type, 3) -> antidote_crdt_counter;
-decode(type, 4) -> antidote_crdt_orset;
-decode(type, 5) -> antidote_crdt_lwwreg;
+decode(type, 'COUNTER') -> antidote_crdt_counter;
+decode(type, 'ORSET') -> antidote_crdt_orset;
+decode(type, 'LWWREG') -> antidote_crdt_lwwreg;
 decode(error_code, 0) -> unknown;
 decode(error_code, 1) -> timeout;
 
-decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp, 
+decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp,
                 regop = RegOp}) ->
     {Op, OpParam} = case OpType of
                  1 ->
