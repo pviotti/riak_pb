@@ -84,27 +84,27 @@ encode(reg_update, {assign, Value}) ->
     #apbregupdate{optype = 1, value=Value};
 
 encode(counter_update, {increment, Amount}) ->
-    #apbcounterupdate{optype = 1, inc = Amount};
+    #apbcounterupdate{inc = Amount};
 
 encode(counter_update, {decrement, Amount}) ->
-    #apbcounterupdate{optype = 2, dec=Amount};
+    #apbcounterupdate{inc= -Amount};
 
 encode(set_update, {add, Elem}) ->
-    #apbsetupdate{optype = 1, adds = [term_to_binary(Elem)]};
+    #apbsetupdate{optype = 'ADD', adds = [term_to_binary(Elem)]};
 encode(set_update, {add_all, Elems}) ->
     BinElems = lists:map(fun(Elem) ->
                                 term_to_binary(Elem)
                         end,
                         Elems),
-    #apbsetupdate{optype = 2, adds = BinElems};
+    #apbsetupdate{optype = 'ADD', adds = BinElems};
 encode(set_update, {remove, Elem}) ->
-    #apbsetupdate{optype = 3, rems = [term_to_binary(Elem)]};
+    #apbsetupdate{optype= 'REMOVE', rems = [term_to_binary(Elem)]};
 encode(set_update, {remove_all, Elems}) ->
     BinElems = lists:map(fun(Elem) ->
                                 term_to_binary(Elem)
                         end,
                         Elems),
-    #apbsetupdate{optype = 4, rems = BinElems};
+    #apbsetupdate{optype = 'REMOVE', rems = BinElems};
 
 
 encode(read_objects, {Objects, TxId}) ->
@@ -156,7 +156,7 @@ encode(read_object_resp, {{_Key, antidote_crdt_counter, _Bucket}, Val}) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
 
 encode(read_object_resp, {{_Key, antidote_crdt_orset, _Bucket}, Val}) ->
-    #apbreadobjectresp{set=#apbgetsetresp{value=term_to_binary(Val)}};
+    #apbreadobjectresp{set=#apbgetsetresp{value=Val}};
 
 encode(static_read_objects_response, {ok, Results, CommitTime}) ->
     #apbstaticreadobjectsresp{
@@ -195,32 +195,27 @@ decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counte
     {decode(bound_object, Object), Op, OpParam};
 decode(reg_update, #apbregupdate{optype = _Op, value =Value}) ->
     {assign, Value};
-decode(counter_update, #apbcounterupdate{optype = Op, inc = I, dec = D}) ->
-    case Op of
-        1 -> {increment, I};
-        2 -> {decrement, D}
+decode(counter_update, #apbcounterupdate{inc = I}) ->
+    case I of
+        undefined -> {increment, 1};
+        I ->  {increment, I} % negative value for I indicates decrement
     end;
 
-decode(set_update, #apbsetupdate{optype = Op, adds = A, rems = R}) ->
-    case Op of
-        1 ->
-            case A of
-                [Elem] -> {add, binary_to_term(Elem)}
-            end;
-        2 -> DecElem = lists:map(fun(Elem) ->
-                                         binary_to_term(Elem)
-                                 end,
-                                 A),
-             {add_all, DecElem};
-        3-> case R of
-                [Elem] -> {remove, binary_to_term(Elem)}
-            end;
-        4 -> DecElem = lists:map(fun(Elem) ->
-                                         binary_to_term(Elem)
-                                 end,
-                                 R),
-             {remove_all, DecElem}
-    end;
+decode(set_update, #apbsetupdate{optype = OpType, adds = A, rems = R}) ->
+  case OpType  of
+      'ADD' ->
+          OpsAdd =  case A of
+                      undefined -> [];
+                      AddElems when is_list(AddElems)-> {add_all, AddElems}
+                    end,
+          OpsAdd;
+      'REMOVE' ->
+          OpsRem = case R of
+                      undefined -> [];
+                      Elems when is_list(Elems) -> {remove_all, Elems}
+                    end,
+          OpsRem
+      end;
 
 decode(_Other, _) ->
     erlang:error("Unknown message").
@@ -248,7 +243,11 @@ decode_response(#apbreadobjectsresp{success=true, objects = Objects}) ->
 decode_response(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) ->
     {counter, Val};
 decode_response(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
-    {set, erlang:binary_to_term(Val)};
+    Res = lists:map(fun(Elem) ->
+                              binary_to_term(Elem)
+                    end,
+                    Val),
+    {set, Res};
 decode_response(#apbreadobjectresp{reg = #apbgetregresp{value = Val}}) ->
     {reg, erlang:binary_to_term(Val)};
 decode_response(#apbstaticreadobjectsresp{objects = Objects,

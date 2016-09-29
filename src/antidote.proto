@@ -15,9 +15,8 @@ message ApbGetRegResp {
 
 // Counter increment requenst
 message ApbCounterUpdate {
-    required uint32 optype = 1;
-    optional uint32 inc = 2;
-    optional uint32 dec = 3;
+    // inc indicates the value to be incremented. To decrement, use a negative value. If no value is given, it will be considered as an increment by 1
+    optional sint64 inc = 1;
 }
 
 // Response operation
@@ -33,15 +32,19 @@ message ApbOperationResp {
 
 // Set updates request
 message ApbSetUpdate{
-    //Optype: add = 1, add_all = 2, remove = 3, remove_all = 4
-    required uint32 optype = 1;
+    enum SetOpType
+    {
+      ADD = 1;
+      REMOVE = 2;
+    }
+    required SetOpType optype = 1;
     repeated bytes adds = 2;
     repeated bytes rems = 3;
 }
 
 // Get set request
 message ApbGetSetResp {
-    required bytes value = 1;
+    repeated bytes value = 1;
 }
 
 //--------------------------------------------------------------
