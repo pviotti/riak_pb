@@ -191,11 +191,11 @@ decode(error_code, 1) -> timeout;
 decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp,
                 regop = RegOp}) ->
     {Op, OpParam} = case OpType of
-                 1 ->
+                 'COUNTER' ->
                      decode(counter_update, CounterOp);
-                 2 ->
+                 'SET' ->
                      decode(set_update, SetOp);
-                 3 ->
+                 'REG' ->
                      decode(reg_update, RegOp)
     end,
     {decode(bound_object, Object), Op, OpParam};
