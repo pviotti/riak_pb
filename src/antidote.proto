@@ -4,8 +4,7 @@ option java_outer_classname = "AntidotePB";
 
 // Counter increment requenst
 message ApbRegUpdate {
-    required uint32 optype = 1;
-    required bytes value = 2;
+    required bytes value = 1;
 }
 
 // Response operation
@@ -76,7 +75,12 @@ message ApbReadObjects {
 // An Object to be updated with specified operation
 message ApbUpdateOp {
         required ApbBoundObject boundobject = 1;
-        required uint32 optype = 2; // Identifies which type update, 1=counter, 2=set
+        enum OPTYPE{
+        COUNTER=1;
+        SET=2;
+        REG=3;
+        }
+        required OPTYPE optype = 2;
         optional ApbCounterUpdate counterop = 3;
         optional ApbSetUpdate setop = 4;
         optional ApbRegUpdate regop = 5;

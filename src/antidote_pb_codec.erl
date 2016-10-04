@@ -63,11 +63,11 @@ encode(update_op, {Object={_Key, Type, _Bucket}, Op, Param}) ->
     EncObject = encode(bound_object, Object),
     case Type of
         antidote_crdt_counter -> EncUp = encode(counter_update, {Op, Param}),
-                                 #apbupdateop{boundobject=EncObject, optype = 1, counterop = EncUp};
+                                 #apbupdateop{boundobject=EncObject, optype = 'COUNTER', counterop = EncUp};
         antidote_crdt_orset -> SetUp = encode(set_update, {Op, Param}),
-                               #apbupdateop{boundobject=EncObject, optype = 2, setop=SetUp};
+                               #apbupdateop{boundobject=EncObject, optype = 'SET', setop=SetUp};
         antidote_crdt_lwwreg -> EncUp = encode(reg_update, {Op, Param}),
-                                #apbupdateop{boundobject=EncObject, optype = 3, regop = EncUp}
+                                #apbupdateop{boundobject=EncObject, optype = 'REG', regop = EncUp}
 
     end;
 
@@ -87,7 +87,7 @@ encode(type, antidote_crdt_orset) -> 'ORSET';
 encode(type, antidote_crdt_lwwreg) -> 'LWWREG';
 
 encode(reg_update, {assign, Value}) ->
-    #apbregupdate{optype = 1, value=Value};
+    #apbregupdate{value=Value};
 
 encode(counter_update, {increment, Amount}) ->
     #apbcounterupdate{inc = Amount};
@@ -199,7 +199,7 @@ decode(update_object, #apbupdateop{boundobject = Object, optype = OpType, counte
                      decode(reg_update, RegOp)
     end,
     {decode(bound_object, Object), Op, OpParam};
-decode(reg_update, #apbregupdate{optype = _Op, value =Value}) ->
+decode(reg_update, #apbregupdate{value =Value}) ->
     {assign, Value};
 decode(counter_update, #apbcounterupdate{inc = I}) ->
     case I of
