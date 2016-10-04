@@ -34,8 +34,14 @@
 -define(TYPE_SET, set).
 
 encode(start_transaction, {Clock, Properties}) ->
-    #apbstarttransaction{timestamp=Clock,
+    case Clock of
+      ignore ->
+              #apbstarttransaction{
                          properties = encode(txn_properties, Properties)};
+      _ ->
+              #apbstarttransaction{timestamp=Clock,
+                         properties = encode(txn_properties, Properties)}
+    end;
 
 encode(txn_properties, _) ->
  %%TODO: Add more property paramaeters
