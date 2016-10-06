@@ -33,6 +33,10 @@
 -define(TYPE_COUNTER, counter).
 -define(TYPE_SET, set).
 
+
+-define(assert_binary(X), case is_binary(X) of true -> ok; false -> throw({not_binary, X}) end).
+-define(assert_all_binary(Xs), [?assert_binary(X) || X <- Xs]).
+
 % general encode function
 encode(start_transaction, {Clock, Properties}) ->
   encode_start_transaction(Clock, Properties);
@@ -170,17 +174,18 @@ encode_static_update_objects(Clock, Properties, Updates) ->
 
 
 decode_update_op(Obj) ->
-  #apbupdateop{boundobject = Object, optype = OpType, counterop = CounterOp, setop = SetOp,
-    regop = RegOp} = Obj,
-  {Op, OpParam} = case OpType of
-                    'COUNTER' ->
-                      decode_counter_update(CounterOp);
-                    'SET' ->
-                      decode_set_update(SetOp);
-                    'REG' ->
-                      decode_reg_update(RegOp)
-                  end,
+  #apbupdateop{boundobject = Object, operation = Operation}=Obj,
+  {Op, OpParam} = decode_update_operation(Operation),
   {decode_bound_object(Object), Op, OpParam}.
+
+
+encode_update_op({Object, Op, Param}) ->
+  encode_update_op(Object, Op, Param).
+encode_update_op(Object, Op, Param) ->
+  {_Key, Type, _Bucket} = Object,
+  EncObject = encode_bound_object(Object),
+  Operation = encode_update_operation(Type, {Op, Param}),
+  #apbupdateop{boundobject = EncObject, operation = Operation}.
 
 
 
@@ -278,33 +283,73 @@ encode_read_objects(Objects, TxId) ->
 %%%%%%%%%%%%%%%%%%%
 %% Crdt types
 
+%%COUNTER = 3;
+%%ORSET = 4;
+%%LWWREG = 5;
+%%MVREG = 6;
+%%INTEGER = 7;
+%%GMAP = 8;
+%%AWMAP = 9;
+%%RWSET = 10;
+
 encode_type(antidote_crdt_counter) -> 'COUNTER';
 encode_type(antidote_crdt_orset) -> 'ORSET';
-encode_type(antidote_crdt_lwwreg) -> 'LWWREG'.
+encode_type(antidote_crdt_lwwreg) -> 'LWWREG';
+encode_type(antidote_crdt_mvreg) -> 'MVREG';
+encode_type(antidote_crdt_integer) -> 'INTEGER';
+encode_type(antidote_crdt_gmap) -> 'GMAP';
+encode_type(antidote_crdt_map_aw) -> 'AWMAP';
+encode_type(antidote_crdt_set_rw) -> 'RWSET'.
+
 
 decode_type('COUNTER') -> antidote_crdt_counter;
 decode_type('ORSET') -> antidote_crdt_orset;
-decode_type('LWWREG') -> antidote_crdt_lwwreg.
+decode_type('LWWREG') -> antidote_crdt_lwwreg;
+decode_type('MVREG') -> antidote_crdt_mvreg;
+decode_type('INTEGER') -> antidote_crdt_integer;
+decode_type('GMAP') -> antidote_crdt_gmap;
+decode_type('AWMAP') -> antidote_crdt_map_aw;
+decode_type('RWSET') -> antidote_crdt_set_rw.
 
 
 %%%%%%%%%%%%%%%%%%%%%%
 % CRDT operations
 
-% general encoding of a CRDT operation
-encode_update_op({Object, Op, Param}) ->
-  encode_update_op(Object, Op, Param).
-encode_update_op(Object, Op, Param) ->
-  {_Key, Type, _Bucket} = Object,
-  EncObject = encode_bound_object(Object),
-  case Type of
-    antidote_crdt_counter -> EncUp = encode_counter_update({Op, Param}),
-      #apbupdateop{boundobject = EncObject, optype = 'COUNTER', counterop = EncUp};
-    antidote_crdt_orset -> SetUp = encode_set_update({Op, Param}),
-      #apbupdateop{boundobject = EncObject, optype = 'SET', setop = SetUp};
-    antidote_crdt_lwwreg -> EncUp = encode_reg_update({Op, Param}),
-      #apbupdateop{boundobject = EncObject, optype = 'REG', regop = EncUp}
 
-  end.
+encode_update_operation(antidote_crdt_counter, Op_Param) ->
+  #apbupdateoperation{counterop = encode_counter_update(Op_Param)};
+encode_update_operation(antidote_crdt_orset, Op_Param) ->
+  #apbupdateoperation{setop = encode_set_update(Op_Param)};
+encode_update_operation(antidote_crdt_set_rw, Op_Param) ->
+  #apbupdateoperation{setop = encode_set_update(Op_Param)};
+encode_update_operation(antidote_crdt_lwwreg, Op_Param) ->
+  #apbupdateoperation{regop = encode_reg_update(Op_Param)};
+encode_update_operation(antidote_crdt_mvreg, Op_Param) ->
+  #apbupdateoperation{regop = encode_reg_update(Op_Param)};
+encode_update_operation(antidote_crdt_integer, Op_Param) ->
+  #apbupdateoperation{integerop = encode_integer_update(Op_Param)};
+encode_update_operation(antidote_crdt_gmap, Op_Param) ->
+  #apbupdateoperation{mapop = encode_map_update(Op_Param)};
+encode_update_operation(antidote_crdt_map_aw, Op_Param) ->
+  #apbupdateoperation{mapop = encode_map_update(Op_Param)};
+encode_update_operation(Type, _Op) ->
+  throw({invalid_type, Type}).
+
+decode_update_operation(#apbupdateoperation{counterop = Op}) when Op /= undefined ->
+  decode_counter_update(Op);
+decode_update_operation(#apbupdateoperation{setop = Op}) when Op /= undefined ->
+  decode_set_update(Op);
+decode_update_operation(#apbupdateoperation{regop = Op}) when Op /= undefined ->
+  decode_reg_update(Op);
+decode_update_operation(#apbupdateoperation{integerop = Op}) when Op /= undefined ->
+  decode_integer_update(Op);
+decode_update_operation(#apbupdateoperation{mapop = Op}) when Op /= undefined ->
+  decode_map_update(Op).
+
+%%decode_update_operation(#apbupdateoperation{mapop = Op}) when Op /= undefined ->
+%%  decode_map_update(Op);
+%%decode_update_operation(#apbupdateoperation{resetop = Op}) when Op /= undefined ->
+%%  decode_reset_update(Op).
 
 % general encoding of CRDT responses
 
@@ -312,60 +357,66 @@ encode_read_object_resp({{_Key, Type, _Bucket}, Val}) ->
   encode_read_object_resp(Type, Val).
 
 encode_read_object_resp(antidote_crdt_lwwreg, Val) ->
-    #apbreadobjectresp{reg=#apbgetregresp{value=term_to_binary(Val)}};
+    #apbreadobjectresp{reg=#apbgetregresp{value=Val}};
+encode_read_object_resp(antidote_crdt_mvreg, Vals) ->
+    #apbreadobjectresp{mvreg = #apbgetmvregresp{values = Vals}};
 encode_read_object_resp(antidote_crdt_counter, Val) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
 encode_read_object_resp(antidote_crdt_orset, Val) ->
-    #apbreadobjectresp{set=#apbgetsetresp{value=Val}}.
-
+    #apbreadobjectresp{set=#apbgetsetresp{value=Val}};
+encode_read_object_resp(antidote_crdt_set_rw, Val) ->
+    #apbreadobjectresp{set=#apbgetsetresp{value=Val}};
+encode_read_object_resp(antidote_crdt_integer, Val) ->
+    #apbreadobjectresp{int = #apbgetintegerresp{value = Val}};
+encode_read_object_resp(antidote_crdt_gmap, Val) ->
+    #apbreadobjectresp{map = encode_map_get_resp(Val)};
+encode_read_object_resp(antidote_crdt_map_aw, Val) ->
+    #apbreadobjectresp{map = encode_map_get_resp(Val)}.
 
 % TODO why does this use counter instead of antidote_crdt_counter etc.?
 decode_read_object_resp(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) ->
     {counter, Val};
 decode_read_object_resp(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
-    Res = lists:map(fun(Elem) ->
-                              binary_to_term(Elem)
-                    end,
-                    Val),
-    {set, Res};
+    {set, Val};
 decode_read_object_resp(#apbreadobjectresp{reg = #apbgetregresp{value = Val}}) ->
-    {reg, erlang:binary_to_term(Val)}.
-
+    {reg, Val};
+decode_read_object_resp(#apbreadobjectresp{mvreg = #apbgetmvregresp{values = Vals}}) ->
+    {mvreg, Vals};
+decode_read_object_resp(#apbreadobjectresp{int = #apbgetintegerresp{value = Val}}) ->
+    {integer, Val};
+decode_read_object_resp(#apbreadobjectresp{map = MapResp=#apbgetmapresp{}}) ->
+    {map, decode_map_get_resp(MapResp)}.
 
 % set updates
 
 encode_set_update({add, Elem}) ->
-    #apbsetupdate{optype = 'ADD', adds = [term_to_binary(Elem)]};
+    ?assert_binary(Elem),
+    #apbsetupdate{optype = 'ADD', adds = [Elem]};
 encode_set_update({add_all, Elems}) ->
-    BinElems = lists:map(fun(Elem) ->
-                                term_to_binary(Elem)
-                        end,
-                        Elems),
-    #apbsetupdate{optype = 'ADD', adds = BinElems};
+    ?assert_all_binary(Elems),
+    #apbsetupdate{optype = 'ADD', adds = Elems};
 encode_set_update({remove, Elem}) ->
-    #apbsetupdate{optype= 'REMOVE', rems = [term_to_binary(Elem)]};
+    ?assert_binary(Elem),
+    #apbsetupdate{optype= 'REMOVE', rems = [Elem]};
 encode_set_update({remove_all, Elems}) ->
-    BinElems = lists:map(fun(Elem) ->
-                                term_to_binary(Elem)
-                        end,
-                        Elems),
-    #apbsetupdate{optype = 'REMOVE', rems = BinElems}.
+    ?assert_all_binary(Elems),
+    #apbsetupdate{optype = 'REMOVE', rems = Elems}.
 
 decode_set_update(Update) ->
   #apbsetupdate{optype = OpType, adds = A, rems = R} = Update,
   case OpType of
     'ADD' ->
-      OpsAdd = case A of
-                 undefined -> [];
-                 AddElems when is_list(AddElems) -> {add_all, AddElems}
-               end,
-      OpsAdd;
+      case A of
+        undefined -> [];
+        [Elem] -> {add, Elem};
+        AddElems when is_list(AddElems) -> {add_all, AddElems}
+      end;
     'REMOVE' ->
-      OpsRem = case R of
-                 undefined -> [];
-                 Elems when is_list(Elems) -> {remove_all, Elems}
-               end,
-      OpsRem
+      case R of
+        undefined -> [];
+        [Elem] -> {remove, Elem};
+        Elems when is_list(Elems) -> {remove_all, Elems}
+      end
   end.
 
 % counter updates
@@ -395,6 +446,85 @@ decode_reg_update(Update) ->
   #apbregupdate{value = Value} = Update,
   {assign, Value}.
 
+% integer updates
+
+encode_integer_update({set, Value}) ->
+  #apbintegerupdate{set = Value};
+encode_integer_update({increment, Value}) ->
+  #apbintegerupdate{inc = Value}.
+
+decode_integer_update(#apbintegerupdate{set=Value}) when is_integer(Value) ->
+  {set, Value};
+decode_integer_update(#apbintegerupdate{inc=Value}) when is_integer(Value) ->
+  {increment, Value}.
+
+% map updates
+
+encode_map_update({update, Ops}) when is_list(Ops) ->
+  encode_map_update({batch, {Ops, []}});
+encode_map_update({update, Op}) ->
+  encode_map_update({batch, {[Op], []}});
+encode_map_update({remove, Keys}) when is_list(Keys) ->
+  encode_map_update({batch, {[], Keys}});
+encode_map_update({remove, Key}) ->
+  encode_map_update({batch, {[], [Key]}});
+encode_map_update({batch, {Updates, RemovedKeys}}) ->
+  UpdatesEnc = [encode_map_nested_update(U) || U <- Updates],
+  RemovedKeysEnc = [encode_map_key(K) || K <- RemovedKeys],
+  #apbmapupdate{updates = UpdatesEnc, removedkeys = RemovedKeysEnc}.
+
+
+decode_map_update(#apbmapupdate{updates = [Update], removedkeys = []}) ->
+  {update, decode_map_nested_update(Update)};
+decode_map_update(#apbmapupdate{updates = Updates, removedkeys = []}) ->
+  {update, [decode_map_nested_update(U) || U <- Updates]};
+decode_map_update(#apbmapupdate{updates = [], removedkeys = [Key]}) ->
+  {remove, decode_map_key(Key)};
+decode_map_update(#apbmapupdate{updates = [], removedkeys = Keys}) ->
+  {remove, [decode_map_key(K) || K <- Keys]};
+decode_map_update(#apbmapupdate{updates = Updates, removedkeys = Keys}) ->
+  {batch, {[decode_map_nested_update(U) || U <- Updates], [decode_map_key(K) || K <- Keys]}}.
+
+
+encode_map_nested_update({{Key,Type}, Update}) ->
+  #apbmapnestedupdate{
+    key = encode_map_key({Key,Type}),
+    update = encode_update_operation(Type, Update)
+  }.
+
+decode_map_nested_update(#apbmapnestedupdate{key = KeyEnc, update = UpdateEnc}) ->
+  {Key, Type} = decode_map_key(KeyEnc),
+  Update = decode_update_operation(UpdateEnc),
+  {{Key, Type}, Update}.
+
+encode_map_key({Key, Type}) ->
+  ?assert_binary(Key),
+  #apbmapkey{
+    key = Key,
+    type = encode_type(Type)
+  }.
+
+decode_map_key(#apbmapkey{key = Key, type = Type}) ->
+  {Key, decode_type(Type)}.
+
+% map responses
+
+encode_map_get_resp(Entries) ->
+  #apbgetmapresp{entries = [encode_map_entry(E) || E <- Entries]}.
+
+decode_map_get_resp(#apbgetmapresp{entries = Entries}) ->
+  [decode_map_entry(E) || E <- Entries].
+
+encode_map_entry({{Key,Type}, Val}) ->
+  #apbmapentry{
+    key = encode_map_key({Key, Type}),
+    value = encode_read_object_resp(Type, Val)
+  }.
+
+decode_map_entry(#apbmapentry{key = KeyEnc, value = ValueEnc}) ->
+  {Key, Type} = decode_map_key(KeyEnc),
+  {_Tag, Value} = decode_read_object_resp(ValueEnc),
+  {{Key, Type}, Value}.
 
 
 
@@ -439,22 +569,22 @@ read_transaction_test() ->
                  antidote_pb_codec:decode_response(ErrMsg)),
 
     %% Test encoding results
-    Results = [1, [term_to_binary(2)]],
+    Results = [1, [<<"a">>,<<"b">>]],
     ResEnc = antidote_pb_codec:encode(read_objects_response,
                                       {ok, lists:zip(Objects, Results)}
                                      ),
     [ResMsgCode, ResMsgData] = riak_pb_codec:encode(ResEnc),
     ResMsg = riak_pb_codec:decode(ResMsgCode, list_to_binary(ResMsgData)),
-    ?assertMatch({read_objects, [{counter, 1}, {set, [2]}]},
+    ?assertMatch({read_objects, [{counter, 1}, {set, [<<"a">>,<<"b">>]}]},
                  antidote_pb_codec:decode_response(ResMsg)).
 
 update_types_test() ->
     Updates = [ {{<<"1">>, antidote_crdt_counter, <<"2">>}, increment , 1},
                 {{<<"2">>, antidote_crdt_counter, <<"2">>}, increment , 1},
-                {{<<"a">>, antidote_crdt_orset, <<"2">>}, add , 3},
+                {{<<"a">>, antidote_crdt_orset, <<"2">>}, add , <<"3">>},
                 {{<<"b">>, antidote_crdt_counter, <<"2">>}, increment , 2},
-                {{<<"c">>, antidote_crdt_orset, <<"2">>}, add, 4},
-                {{<<"a">>, antidote_crdt_orset, <<"2">>}, add_all , [5,6]}
+                {{<<"c">>, antidote_crdt_orset, <<"2">>}, add, <<"4">>},
+                {{<<"a">>, antidote_crdt_orset, <<"2">>}, add_all , [<<"5">>,<<"6">>]}
               ],
     TxId = term_to_binary({12}),
          %% Dummy value, structure of TxId is opaque to client
@@ -466,13 +596,7 @@ update_types_test() ->
     DecUpdates = lists:map(fun(O) ->
                                 antidote_pb_codec:decode_update_op(O) end,
                         Msg#apbupdateobjects.updates),
-    Expected = [ {{<<"1">>, antidote_crdt_counter, <<"2">>}, increment , 1},
-                  {{<<"2">>, antidote_crdt_counter, <<"2">>}, increment , 1},
-                  {{<<"a">>, antidote_crdt_orset, <<"2">>}, add_all , [term_to_binary(3)]},
-                  {{<<"b">>, antidote_crdt_counter, <<"2">>}, increment , 2},
-                  {{<<"c">>, antidote_crdt_orset, <<"2">>}, add_all, [term_to_binary(4)]},
-                  {{<<"a">>, antidote_crdt_orset, <<"2">>}, add_all , [term_to_binary(X) || X <- [5,6]]}],
-    ?assertMatch(Expected, DecUpdates).
+    ?assertMatch(Updates, DecUpdates).
 
 error_messages_test() ->
     EncRecord1 = antidote_pb_codec:encode(start_transaction_response,
@@ -511,13 +635,74 @@ error_messages_test() ->
 crdt_encode_decode_test() ->
   %% encoding the following operations and decoding them again, should give the same result
 
+  % Counter
   ?TestCrdtOperationCodec(antidote_crdt_counter, increment, 1),
   ?TestCrdtResponseCodec(antidote_crdt_counter, counter, 42),
+
+  % lww-register
+  ?TestCrdtOperationCodec(antidote_crdt_lwwreg, assign, <<"hello">>),
+  ?TestCrdtResponseCodec(antidote_crdt_lwwreg, reg, <<"blub">>),
+
+
+  % mv-register
+  ?TestCrdtOperationCodec(antidote_crdt_mvreg, assign, <<"hello">>),
+  ?TestCrdtResponseCodec(antidote_crdt_mvreg, mvreg, [<<"a">>, <<"b">>, <<"c">>]),
+
+  % set
+  ?TestCrdtOperationCodec(antidote_crdt_orset, add, <<"hello">>),
+  ?TestCrdtOperationCodec(antidote_crdt_orset, add_all, [<<"a">>, <<"b">>, <<"c">>]),
+  ?TestCrdtOperationCodec(antidote_crdt_orset, remove, <<"hello">>),
+  ?TestCrdtOperationCodec(antidote_crdt_orset, remove_all, [<<"a">>, <<"b">>, <<"c">>]),
+  ?TestCrdtResponseCodec(antidote_crdt_orset, set, [<<"a">>, <<"b">>, <<"c">>]),
+
+  % same for remove wins set:
+  ?TestCrdtOperationCodec(antidote_crdt_set_rw, add, <<"hello">>),
+  ?TestCrdtOperationCodec(antidote_crdt_set_rw, add_all, [<<"a">>, <<"b">>, <<"c">>]),
+  ?TestCrdtOperationCodec(antidote_crdt_set_rw, remove, <<"hello">>),
+  ?TestCrdtOperationCodec(antidote_crdt_set_rw, remove_all, [<<"a">>, <<"b">>, <<"c">>]),
+  ?TestCrdtResponseCodec(antidote_crdt_set_rw, set, [<<"a">>, <<"b">>, <<"c">>]),
+
+  % integer
+  ?TestCrdtOperationCodec(antidote_crdt_integer, set, 13),
+  ?TestCrdtOperationCodec(antidote_crdt_integer, increment, 7),
+  ?TestCrdtResponseCodec(antidote_crdt_integer, integer, 123),
+
+  % map
+  ?TestCrdtOperationCodec(antidote_crdt_map_aw, update, {{<<"key">>, antidote_crdt_integer}, {set, 42}}),
+  ?TestCrdtOperationCodec(antidote_crdt_map_aw, update, [
+    {{<<"a">>, antidote_crdt_integer}, {set, 42}},
+    {{<<"b">>, antidote_crdt_orset}, {add, <<"x">>}}]),
+  ?TestCrdtOperationCodec(antidote_crdt_map_aw, remove, {<<"key">>, antidote_crdt_integer}),
+  ?TestCrdtOperationCodec(antidote_crdt_map_aw, remove, [
+    {<<"a">>, antidote_crdt_integer},
+    {<<"b">>, antidote_crdt_integer}]),
+  ?TestCrdtOperationCodec(antidote_crdt_map_aw, batch, {
+    [ {{<<"a">>, antidote_crdt_integer}, {set, 42}},
+      {{<<"b">>, antidote_crdt_orset}, {add, <<"x">>}}],
+    [ {<<"a">>, antidote_crdt_integer},
+      {<<"b">>, antidote_crdt_integer}]}),
+
+  ?TestCrdtResponseCodec(antidote_crdt_map_aw, map, [
+    {{<<"a">>, antidote_crdt_integer}, 42}
+  ]),
+
+  % gmap
+  ?TestCrdtOperationCodec(antidote_crdt_gmap, update, {{<<"key">>, antidote_crdt_integer}, {set, 42}}),
+  ?TestCrdtOperationCodec(antidote_crdt_gmap, update, [
+    {{<<"a">>, antidote_crdt_integer}, {set, 42}},
+    {{<<"b">>, antidote_crdt_orset}, {add, <<"x">>}}]),
+  ?TestCrdtResponseCodec(antidote_crdt_gmap, map, [
+    {{<<"a">>, antidote_crdt_integer}, 42}
+  ]),
+
+
 
   ok.
 
 
 
 -endif.
+
+
 
 

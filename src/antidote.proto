@@ -37,8 +37,8 @@ message ApbGetCounterResp {
 message ApbSetUpdate{
     enum SetOpType // TODO merge adds/removes
     {
-      ADD = 1;
-      REMOVE = 2;
+        ADD = 1;
+        REMOVE = 2;
     }
     required SetOpType optype = 1;
     repeated bytes adds = 2;
@@ -70,17 +70,18 @@ message ApbGetRegResp {
 
 // response:
 message ApbGetMVRegResp {
-    repeated bytes value = 1;
+    repeated bytes values = 1;
 }
 
 //------------------
 // Integer
 
 message ApbIntegerUpdate {
-    oneof operation {
-        sint64 inc = 1;
-        sint64 set = 2;
-    }
+    // choose one of the following:
+    // increment the integer
+    optional sint64 inc = 1;
+    // set the integer to a number
+    optional sint64 set = 2;
 }
 
 message ApbGetIntegerResp {
@@ -98,14 +99,12 @@ message ApbMapKey {
 
 message ApbMapUpdate {
     repeated ApbMapNestedUpdate updates = 1;
+    repeated ApbMapKey removedKeys = 2;
 }
 
 message ApbMapNestedUpdate {
     required ApbMapKey key = 1;
-    oneof operation {
-        ApbUpdateOperation update = 2;
-        bool remove = 3; // actual value does not matter, but protocol buffer has no unit type
-    }
+    required ApbUpdateOperation update = 2;
 }
 
 message ApbGetMapResp {
@@ -140,99 +139,96 @@ message ApbTxnProperties {
 
 // Object (Key) representation
 message ApbBoundObject {
-  required bytes key = 1;
-  required CRDT_type type = 2;
-  required bytes bucket = 3;
+    required bytes key = 1;
+    required CRDT_type type = 2;
+    required bytes bucket = 3;
 }
 
 // Objects to be read
 message ApbReadObjects {
-        repeated ApbBoundObject boundobjects = 1;
-        required bytes transaction_descriptor = 2;
+    repeated ApbBoundObject boundobjects = 1;
+    required bytes transaction_descriptor = 2;
 }
 
 // An Object to be updated with specified operation
 message ApbUpdateOp {
-        required ApbBoundObject boundobject = 1;
-        enum OPTYPE{
-        COUNTER=1;
-        SET=2;
-        REG=3;
-        }
-        required OPTYPE optype = 2;
-        optional ApbCounterUpdate counterop = 3;
-        optional ApbSetUpdate setop = 4;
-        optional ApbRegUpdate regop = 5;
+    required ApbBoundObject boundobject = 1;
+    required ApbUpdateOperation operation = 2;
 }
 
 message ApbUpdateOperation { // TODO use this above
-    oneof operation {
-        ApbCounterUpdate counterop = 1;
-        ApbSetUpdate setop = 2;
-        ApbRegUpdate regop = 3;
-    }
+    optional ApbCounterUpdate counterop = 1;
+    optional ApbSetUpdate setop = 2;
+    optional ApbRegUpdate regop = 3;
+    optional ApbIntegerUpdate integerop = 4;
+    optional ApbMapUpdate mapop = 5;
+    optional ApbCrdtReset resetop = 6;
 }
 
 // Objects to be updated
 message ApbUpdateObjects {
-        repeated ApbUpdateOp updates = 1;
-        required bytes transaction_descriptor = 2;
+    repeated ApbUpdateOp updates = 1;
+    required bytes transaction_descriptor = 2;
 }
 
 // Start Transaction
 message ApbStartTransaction {
-        optional bytes timestamp = 1;
-        optional ApbTxnProperties properties = 2;
+    optional bytes timestamp = 1;
+    optional ApbTxnProperties properties = 2;
 }
 
 // Abort Transaction
 message ApbAbortTransaction {
-        required bytes transaction_descriptor = 1;
+    required bytes transaction_descriptor = 1;
 }
 
 // Commit Transaction
 message ApbCommitTransaction {
-        required bytes transaction_descriptor = 1;
+    required bytes transaction_descriptor = 1;
 }
 
 
 message ApbStaticUpdateObjects{
-	required ApbStartTransaction transaction = 1;
-	repeated ApbUpdateOp updates = 2;
+    required ApbStartTransaction transaction = 1;
+    repeated ApbUpdateOp updates = 2;
 }
 
 message ApbStaticReadObjects{
-	required ApbStartTransaction transaction = 1;
-	repeated ApbBoundObject objects = 2;
+    required ApbStartTransaction transaction = 1;
+    repeated ApbBoundObject objects = 2;
 }
 
 //Start transaction response
 message ApbStartTransactionResp {
-        required bool success = 1;
-        optional bytes transaction_descriptor = 2;
-        optional uint32 errorcode = 3;
+    required bool success = 1;
+    optional bytes transaction_descriptor = 2;
+    optional uint32 errorcode = 3;
 }
 
 //Read Objects Response
-message ApbReadObjectResp { // TODO use oneOf
-        optional ApbGetCounterResp counter = 1;
-        optional ApbGetSetResp set = 2;
-        optional ApbGetRegResp reg = 3;
+message ApbReadObjectResp {
+    // one of the following:
+    optional ApbGetCounterResp counter = 1;
+    optional ApbGetSetResp set = 2;
+    optional ApbGetRegResp reg = 3;
+    optional ApbGetMVRegResp mvreg = 4;
+    optional ApbGetIntegerResp int = 5;
+    optional ApbGetMapResp map = 6;
 }
 message ApbReadObjectsResp {
-        required bool success = 1;
-        repeated ApbReadObjectResp objects = 2;
-        optional uint32 errorcode = 3;
+    required bool success = 1;
+    repeated ApbReadObjectResp objects = 2;
+    optional uint32 errorcode = 3;
 }
 
 // Commit Response
 message ApbCommitResp {
-        required bool success = 1;
-        optional bytes commit_time = 2;
-        optional uint32 errorcode = 3;
+    required bool success = 1;
+    optional bytes commit_time = 2;
+    optional uint32 errorcode = 3;
 }
 
 message ApbStaticReadObjectsResp {
-	required ApbReadObjectsResp objects = 1;
-	required ApbCommitResp committime = 2;
+    required ApbReadObjectsResp objects = 1;
+    required ApbCommitResp committime = 2;
 }
