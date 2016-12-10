@@ -322,7 +322,7 @@ decode_type('RRMAP') -> antidote_crdt_map_rr.
 
 encode_update_operation(antidote_crdt_counter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};
-encode_update_operation(antidote_fat_counter, Op_Param) ->
+encode_update_operation(antidote_crdt_fat_counter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};  
 encode_update_operation(antidote_crdt_orset, Op_Param) ->
   #apbupdateoperation{setop = encode_set_update(Op_Param)};
