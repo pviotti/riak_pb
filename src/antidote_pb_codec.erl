@@ -293,23 +293,27 @@ encode_read_objects(Objects, TxId) ->
 %%RWSET = 10;
 
 encode_type(antidote_crdt_counter) -> 'COUNTER';
+encode_type(antidote_crdt_fat_counter) -> 'FATCOUNTER';
 encode_type(antidote_crdt_orset) -> 'ORSET';
 encode_type(antidote_crdt_lwwreg) -> 'LWWREG';
 encode_type(antidote_crdt_mvreg) -> 'MVREG';
 encode_type(antidote_crdt_integer) -> 'INTEGER';
 encode_type(antidote_crdt_gmap) -> 'GMAP';
 encode_type(antidote_crdt_map_aw) -> 'AWMAP';
-encode_type(antidote_crdt_set_rw) -> 'RWSET'.
+encode_type(antidote_crdt_set_rw) -> 'RWSET';
+encode_type(antidote_crdt_map_rr) -> 'RRMAP'.
 
 
 decode_type('COUNTER') -> antidote_crdt_counter;
+decode_type('FATCOUNTER') -> antidote_crdt_fat_counter;
 decode_type('ORSET') -> antidote_crdt_orset;
 decode_type('LWWREG') -> antidote_crdt_lwwreg;
 decode_type('MVREG') -> antidote_crdt_mvreg;
 decode_type('INTEGER') -> antidote_crdt_integer;
 decode_type('GMAP') -> antidote_crdt_gmap;
 decode_type('AWMAP') -> antidote_crdt_map_aw;
-decode_type('RWSET') -> antidote_crdt_set_rw.
+decode_type('RWSET') -> antidote_crdt_set_rw;
+decode_type('RRMAP') -> antidote_crdt_map_rr;
 
 
 %%%%%%%%%%%%%%%%%%%%%%
