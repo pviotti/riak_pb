@@ -293,23 +293,27 @@ encode_read_objects(Objects, TxId) ->
 %%RWSET = 10;
 
 encode_type(antidote_crdt_counter) -> 'COUNTER';
+encode_type(antidote_crdt_fat_counter) -> 'FATCOUNTER';
 encode_type(antidote_crdt_orset) -> 'ORSET';
 encode_type(antidote_crdt_lwwreg) -> 'LWWREG';
 encode_type(antidote_crdt_mvreg) -> 'MVREG';
 encode_type(antidote_crdt_integer) -> 'INTEGER';
 encode_type(antidote_crdt_gmap) -> 'GMAP';
 encode_type(antidote_crdt_map_aw) -> 'AWMAP';
-encode_type(antidote_crdt_set_rw) -> 'RWSET'.
+encode_type(antidote_crdt_set_rw) -> 'RWSET';
+encode_type(antidote_crdt_map_rr) -> 'RRMAP'.
 
 
 decode_type('COUNTER') -> antidote_crdt_counter;
+decode_type('FATCOUNTER') -> antidote_crdt_fat_counter;
 decode_type('ORSET') -> antidote_crdt_orset;
 decode_type('LWWREG') -> antidote_crdt_lwwreg;
 decode_type('MVREG') -> antidote_crdt_mvreg;
 decode_type('INTEGER') -> antidote_crdt_integer;
 decode_type('GMAP') -> antidote_crdt_gmap;
 decode_type('AWMAP') -> antidote_crdt_map_aw;
-decode_type('RWSET') -> antidote_crdt_set_rw.
+decode_type('RWSET') -> antidote_crdt_set_rw;
+decode_type('RRMAP') -> antidote_crdt_map_rr.
 
 
 %%%%%%%%%%%%%%%%%%%%%%
@@ -318,6 +322,8 @@ decode_type('RWSET') -> antidote_crdt_set_rw.
 
 encode_update_operation(antidote_crdt_counter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};
+encode_update_operation(antidote_crdt_fat_counter, Op_Param) ->
+  #apbupdateoperation{counterop = encode_counter_update(Op_Param)};  
 encode_update_operation(antidote_crdt_orset, Op_Param) ->
   #apbupdateoperation{setop = encode_set_update(Op_Param)};
 encode_update_operation(antidote_crdt_set_rw, Op_Param) ->
@@ -332,6 +338,8 @@ encode_update_operation(antidote_crdt_gmap, Op_Param) ->
   #apbupdateoperation{mapop = encode_map_update(Op_Param)};
 encode_update_operation(antidote_crdt_map_aw, Op_Param) ->
   #apbupdateoperation{mapop = encode_map_update(Op_Param)};
+encode_update_operation(antidote_crdt_map_rr, Op_Param) ->
+  #apbupdateoperation{mapop = encode_map_update(Op_Param)};  
 encode_update_operation(Type, _Op) ->
   throw({invalid_type, Type}).
 
@@ -362,6 +370,8 @@ encode_read_object_resp(antidote_crdt_mvreg, Vals) ->
     #apbreadobjectresp{mvreg = #apbgetmvregresp{values = Vals}};
 encode_read_object_resp(antidote_crdt_counter, Val) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
+encode_read_object_resp(antidote_crdt_fat_counter, Val) ->
+    #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};    
 encode_read_object_resp(antidote_crdt_orset, Val) ->
     #apbreadobjectresp{set=#apbgetsetresp{value=Val}};
 encode_read_object_resp(antidote_crdt_set_rw, Val) ->
@@ -371,6 +381,8 @@ encode_read_object_resp(antidote_crdt_integer, Val) ->
 encode_read_object_resp(antidote_crdt_gmap, Val) ->
     #apbreadobjectresp{map = encode_map_get_resp(Val)};
 encode_read_object_resp(antidote_crdt_map_aw, Val) ->
+    #apbreadobjectresp{map = encode_map_get_resp(Val)};
+encode_read_object_resp(antidote_crdt_map_rr, Val) ->
     #apbreadobjectresp{map = encode_map_get_resp(Val)}.
 
 % TODO why does this use counter instead of antidote_crdt_counter etc.?
