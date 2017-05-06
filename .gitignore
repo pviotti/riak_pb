@@ -3,7 +3,6 @@ _build/*
 .eunit/*
 priv/*
 *.o
-include/*_pb.hrl
 doc/*
 .qc
 .eqc-info
