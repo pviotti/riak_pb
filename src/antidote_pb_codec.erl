@@ -399,7 +399,11 @@ encode_read_object_resp(antidote_crdt_gmap, Val) ->
 encode_read_object_resp(antidote_crdt_map_aw, Val) ->
     #apbreadobjectresp{map = encode_map_get_resp(Val)};
 encode_read_object_resp(antidote_crdt_map_rr, Val) ->
-    #apbreadobjectresp{map = encode_map_get_resp(Val)}.
+    #apbreadobjectresp{map = encode_map_get_resp(Val)};
+encode_read_object_resp(antidote_crdt_flag_ew, Val) ->
+    #apbreadobjectresp{flag = #apbgetflagresp{value = Val}};
+encode_read_object_resp(antidote_crdt_flag_dw, Val) ->
+    #apbreadobjectresp{flag = #apbgetflagresp{value = Val}}.
 
 % TODO why does this use counter instead of antidote_crdt_counter etc.?
 decode_read_object_resp(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) ->
@@ -413,7 +417,9 @@ decode_read_object_resp(#apbreadobjectresp{mvreg = #apbgetmvregresp{values = Val
 decode_read_object_resp(#apbreadobjectresp{int = #apbgetintegerresp{value = Val}}) ->
     {integer, Val};
 decode_read_object_resp(#apbreadobjectresp{map = MapResp=#apbgetmapresp{}}) ->
-    {map, decode_map_get_resp(MapResp)}.
+    {map, decode_map_get_resp(MapResp)};
+decode_read_object_resp(#apbreadobjectresp{flag = #apbgetflagresp{value = Val}}) ->
+    {flag, Val}.
 
 % set updates
 
