@@ -14,6 +14,8 @@ enum CRDT_type {
     RWSET = 10;
     RRMAP = 11;
     FATCOUNTER = 12;
+    FLAG_EW = 13;
+    FLAG_DW = 14;
 }
 
 
@@ -118,6 +120,18 @@ message ApbMapEntry {
     required ApbReadObjectResp value = 2;
 }
 
+//-------------------
+// Flags
+
+message ApbFlagUpdate {
+    required bool value = 1;
+}
+
+message ApbGetFlagResp {
+    required bool value = 1;
+}
+
+
 
 // General reset operation
 message ApbCrdtReset {
@@ -165,6 +179,7 @@ message ApbUpdateOperation { // TODO use this above
     optional ApbIntegerUpdate integerop = 4;
     optional ApbMapUpdate mapop = 5;
     optional ApbCrdtReset resetop = 6;
+    optional ApbFlagUpdate flagop = 7;
 }
 
 // Objects to be updated
@@ -216,6 +231,7 @@ message ApbReadObjectResp {
     optional ApbGetMVRegResp mvreg = 4;
     optional ApbGetIntegerResp int = 5;
     optional ApbGetMapResp map = 6;
+    optional ApbGetFlagResp flag = 7;
 }
 message ApbReadObjectsResp {
     required bool success = 1;
