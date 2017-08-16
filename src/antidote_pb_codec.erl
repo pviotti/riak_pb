@@ -301,7 +301,9 @@ encode_type(antidote_crdt_integer) -> 'INTEGER';
 encode_type(antidote_crdt_gmap) -> 'GMAP';
 encode_type(antidote_crdt_map_aw) -> 'AWMAP';
 encode_type(antidote_crdt_set_rw) -> 'RWSET';
-encode_type(antidote_crdt_map_rr) -> 'RRMAP'.
+encode_type(antidote_crdt_map_rr) -> 'RRMAP';
+encode_type(antidote_crdt_flag_ew) -> 'FLAG_EW';
+encode_type(antidote_crdt_flag_dw) -> 'FLAG_DW'.
 
 
 decode_type('COUNTER') -> antidote_crdt_counter;
@@ -313,13 +315,18 @@ decode_type('INTEGER') -> antidote_crdt_integer;
 decode_type('GMAP') -> antidote_crdt_gmap;
 decode_type('AWMAP') -> antidote_crdt_map_aw;
 decode_type('RWSET') -> antidote_crdt_set_rw;
-decode_type('RRMAP') -> antidote_crdt_map_rr.
+decode_type('RRMAP') -> antidote_crdt_map_rr;
+decode_type('FLAG_EW') -> antidote_crdt_flag_ew;
+decode_type('FLAG_DW') -> antidote_crdt_flag_dw.
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%
 % CRDT operations
 
 
+encode_update_operation(_Type, {reset, {}}) ->
+  #apbupdateoperation{resetop = #apbcrdtreset{}};
 encode_update_operation(antidote_crdt_counter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};
 encode_update_operation(antidote_crdt_fat_counter, Op_Param) ->
@@ -339,7 +346,11 @@ encode_update_operation(antidote_crdt_gmap, Op_Param) ->
 encode_update_operation(antidote_crdt_map_aw, Op_Param) ->
   #apbupdateoperation{mapop = encode_map_update(Op_Param)};
 encode_update_operation(antidote_crdt_map_rr, Op_Param) ->
-  #apbupdateoperation{mapop = encode_map_update(Op_Param)};  
+  #apbupdateoperation{mapop = encode_map_update(Op_Param)};
+encode_update_operation(antidote_crdt_flag_ew, Op_Param) ->
+  #apbupdateoperation{flagop = encode_flag_update(Op_Param)};
+encode_update_operation(antidote_crdt_flag_dw, Op_Param) ->
+  #apbupdateoperation{flagop = encode_flag_update(Op_Param)};
 encode_update_operation(Type, _Op) ->
   throw({invalid_type, Type}).
 
@@ -352,7 +363,12 @@ decode_update_operation(#apbupdateoperation{regop = Op}) when Op /= undefined ->
 decode_update_operation(#apbupdateoperation{integerop = Op}) when Op /= undefined ->
   decode_integer_update(Op);
 decode_update_operation(#apbupdateoperation{mapop = Op}) when Op /= undefined ->
-  decode_map_update(Op).
+  decode_map_update(Op);
+decode_update_operation(#apbupdateoperation{flagop = Op}) when Op /= undefined ->
+  decode_flag_update(Op);
+decode_update_operation(#apbupdateoperation{resetop = #apbcrdtreset{}}) ->
+  {reset, {}}.
+
 
 %%decode_update_operation(#apbupdateoperation{mapop = Op}) when Op /= undefined ->
 %%  decode_map_update(Op);
@@ -469,6 +485,18 @@ decode_integer_update(#apbintegerupdate{set=Value}) when is_integer(Value) ->
   {set, Value};
 decode_integer_update(#apbintegerupdate{inc=Value}) when is_integer(Value) ->
   {increment, Value}.
+
+% flag updates
+
+encode_flag_update({enable, {}}) ->
+    #apbflagupdate{value = true};
+encode_flag_update({disable, {}}) ->
+    #apbflagupdate{value = false}.
+
+decode_flag_update(#apbflagupdate{value = true}) ->
+    {enable, {}};
+decode_flag_update(#apbflagupdate{value = false}) ->
+    {disable, {}}.
 
 % map updates
 
@@ -707,7 +735,13 @@ crdt_encode_decode_test() ->
     {{<<"a">>, antidote_crdt_integer}, 42}
   ]),
 
-
+  % flag
+  ?TestCrdtOperationCodec(antidote_crdt_flag_ew, enable, {}),
+  ?TestCrdtOperationCodec(antidote_crdt_flag_ew, disable, {}),
+  ?TestCrdtOperationCodec(antidote_crdt_flag_ew, reset, {}),
+  ?TestCrdtOperationCodec(antidote_crdt_flag_ew, enable, {}),
+  ?TestCrdtOperationCodec(antidote_crdt_flag_ew, disable, {}),
+  ?TestCrdtOperationCodec(antidote_crdt_flag_ew, reset, {}),
 
   ok.
 
