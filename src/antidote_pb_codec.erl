@@ -320,6 +320,8 @@ decode_type('RRMAP') -> antidote_crdt_map_rr.
 % CRDT operations
 
 
+encode_update_operation(_Type, {reset, {}}) ->
+  #apbupdateoperation{resetop = #apbcrdtreset{}};
 encode_update_operation(antidote_crdt_counter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};
 encode_update_operation(antidote_crdt_fat_counter, Op_Param) ->
@@ -352,7 +354,10 @@ decode_update_operation(#apbupdateoperation{regop = Op}) when Op /= undefined ->
 decode_update_operation(#apbupdateoperation{integerop = Op}) when Op /= undefined ->
   decode_integer_update(Op);
 decode_update_operation(#apbupdateoperation{mapop = Op}) when Op /= undefined ->
-  decode_map_update(Op).
+  decode_map_update(Op);
+decode_update_operation(#apbupdateoperation{resetop = #apbcrdtreset{}}) ->
+  {reset, {}}.
+
 
 %%decode_update_operation(#apbupdateoperation{mapop = Op}) when Op /= undefined ->
 %%  decode_map_update(Op);
