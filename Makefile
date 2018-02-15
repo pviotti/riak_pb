@@ -1,8 +1,6 @@
-.PHONY: deps
+REBAR = $(shell pwd)/rebar3
 
-all: deps compile_all
-
-deps: erl_deps
+all: compile_all
 
 compile_all: erl_compile python_compile python3_compile java_compile c_compile
 
@@ -16,9 +14,6 @@ release: python_release python3_release java_release c_release
 # Erlang-specific build steps
 DIALYZER_APPS = kernel stdlib erts crypto compiler hipe syntax_tools
 include tools.mk
-
-erl_deps:
-	@${REBAR} get-deps
 
 erl_compile:
 	@${REBAR} compile
