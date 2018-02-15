@@ -16,8 +16,22 @@ enum CRDT_type {
     FATCOUNTER = 12;
     FLAG_EW = 13;
     FLAG_DW = 14;
+    BCOUNTER = 15;
 }
 
+//------------------
+// Bounded Counter
+
+// Bounded counter increment request
+message ApbBCounterUpdate {
+    // inc indicates the value to be incremented. To decrement, use a negative value. If no value is given, it will be considered as an increment by 1
+    optional sint64 inc = 1;
+}
+
+// Response operation
+message ApbGetBCounterResp {
+    required sint32 value = 1;
+}
 
 //------------------
 // Counter

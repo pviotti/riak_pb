@@ -294,6 +294,7 @@ encode_read_objects(Objects, TxId) ->
 
 encode_type(antidote_crdt_counter) -> 'COUNTER';
 encode_type(antidote_crdt_fat_counter) -> 'FATCOUNTER';
+encode_type(antidote_crdt_bcounter) -> 'BCOUNTER';
 encode_type(antidote_crdt_orset) -> 'ORSET';
 encode_type(antidote_crdt_lwwreg) -> 'LWWREG';
 encode_type(antidote_crdt_mvreg) -> 'MVREG';
@@ -308,6 +309,7 @@ encode_type(antidote_crdt_flag_dw) -> 'FLAG_DW'.
 
 decode_type('COUNTER') -> antidote_crdt_counter;
 decode_type('FATCOUNTER') -> antidote_crdt_fat_counter;
+decode_type('BCOUNTER') -> antidote_crdt_bcounter;
 decode_type('ORSET') -> antidote_crdt_orset;
 decode_type('LWWREG') -> antidote_crdt_lwwreg;
 decode_type('MVREG') -> antidote_crdt_mvreg;
@@ -330,6 +332,8 @@ encode_update_operation(_Type, {reset, {}}) ->
 encode_update_operation(antidote_crdt_counter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};
 encode_update_operation(antidote_crdt_fat_counter, Op_Param) ->
+  #apbupdateoperation{counterop = encode_counter_update(Op_Param)};  
+encode_update_operation(antidote_crdt_bcounter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};  
 encode_update_operation(antidote_crdt_orset, Op_Param) ->
   #apbupdateoperation{setop = encode_set_update(Op_Param)};
@@ -684,6 +688,10 @@ crdt_encode_decode_test() ->
   % Counter
   ?TestCrdtOperationCodec(antidote_crdt_counter, increment, 1),
   ?TestCrdtResponseCodec(antidote_crdt_counter, counter, 42),
+  
+  % Bounded counter
+  ?TestCrdtOperationCodec(antidote_crdt_bcounter, increment, 1),
+  ?TestCrdtResponseCodec(antidote_crdt_bcounter, counter, 42),
 
   % lww-register
   ?TestCrdtOperationCodec(antidote_crdt_lwwreg, assign, <<"hello">>),
