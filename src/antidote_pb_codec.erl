@@ -60,6 +60,8 @@ encode(reg_update, Update) ->
   encode_reg_update(Update);
 encode(counter_update, Update) ->
   encode_counter_update(Update);
+encode(bcounter_update, Update) ->
+  encode_bcounter_update(Update);
 encode(set_update, Update) ->
   encode_set_update(Update);
 encode(read_objects, {Objects, TxId}) ->
@@ -98,6 +100,8 @@ decode(reg_update, Update) ->
   decode_reg_update(Update);
 decode(counter_update, Update) ->
   decode_counter_update(Update);
+decode(bcounter_update, Update) ->
+  decode_bcounter_update(Update);
 decode(set_update, Update) ->
   decode_set_update(Update);
 decode(_Other, _) ->
@@ -334,7 +338,7 @@ encode_update_operation(antidote_crdt_counter, Op_Param) ->
 encode_update_operation(antidote_crdt_fat_counter, Op_Param) ->
   #apbupdateoperation{counterop = encode_counter_update(Op_Param)};  
 encode_update_operation(antidote_crdt_bcounter, Op_Param) ->
-  #apbupdateoperation{counterop = encode_counter_update(Op_Param)};  
+  #apbupdateoperation{bcounterop = encode_bcounter_update(Op_Param)};  
 encode_update_operation(antidote_crdt_orset, Op_Param) ->
   #apbupdateoperation{setop = encode_set_update(Op_Param)};
 encode_update_operation(antidote_crdt_set_rw, Op_Param) ->
@@ -360,6 +364,8 @@ encode_update_operation(Type, _Op) ->
 
 decode_update_operation(#apbupdateoperation{counterop = Op}) when Op /= undefined ->
   decode_counter_update(Op);
+decode_update_operation(#apbupdateoperation{bcounterop = Op}) when Op /= undefined ->
+  decode_bcounter_update(Op);
 decode_update_operation(#apbupdateoperation{setop = Op}) when Op /= undefined ->
   decode_set_update(Op);
 decode_update_operation(#apbupdateoperation{regop = Op}) when Op /= undefined ->
@@ -392,6 +398,8 @@ encode_read_object_resp(antidote_crdt_counter, Val) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
 encode_read_object_resp(antidote_crdt_fat_counter, Val) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};    
+encode_read_object_resp(antidote_crdt_bcounter, Val) ->
+    #apbreadobjectresp{bcounter=#apbgetcounterresp{value=Val}};
 encode_read_object_resp(antidote_crdt_orset, Val) ->
     #apbreadobjectresp{set=#apbgetsetresp{value=Val}};
 encode_read_object_resp(antidote_crdt_set_rw, Val) ->
@@ -412,6 +420,8 @@ encode_read_object_resp(antidote_crdt_flag_dw, Val) ->
 % TODO why does this use counter instead of antidote_crdt_counter etc.?
 decode_read_object_resp(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) ->
     {counter, Val};
+decode_read_object_resp(#apbreadobjectresp{bcounter = #apbgetcounterresp{value = Val}}) ->
+    {bcounter, Val};
 decode_read_object_resp(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
     {set, Val};
 decode_read_object_resp(#apbreadobjectresp{reg = #apbgetregresp{value = Val}}) ->
@@ -471,6 +481,19 @@ decode_counter_update(Update) ->
     undefined -> {increment, 1};
     I -> {increment, I} % negative value for I indicates decrement
   end.
+
+% bounded counter updates
+
+encode_bcounter_update({increment, Amount}) ->
+  #apbbcounterupdate{inc = Amount};
+encode_bcounter_update({decrement, Amount}) ->
+  #apbbcounterupdate{dec = Amount}.
+
+
+decode_bcounter_update(#apbbcounterupdate{inc=Value}) when is_integer(Value) ->
+  {increment, {Value, mydc}};
+decode_bcounter_update(#apbbcounterupdate{dec=Value}) when is_integer(Value) ->
+  {decrement, {Value, mydc}}.
 
 
 % register updates
