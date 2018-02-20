@@ -491,9 +491,9 @@ encode_bcounter_update({decrement, Amount}) ->
 
 
 decode_bcounter_update(#apbbcounterupdate{inc=Value}) when is_integer(Value) ->
-  {increment, {Value, mydc}};
+  {increment, Value};
 decode_bcounter_update(#apbbcounterupdate{dec=Value}) when is_integer(Value) ->
-  {decrement, {Value, mydc}}.
+  {decrement, Value}.
 
 
 % register updates
@@ -714,7 +714,7 @@ crdt_encode_decode_test() ->
   
   % Bounded counter
   ?TestCrdtOperationCodec(antidote_crdt_bcounter, increment, 1),
-  ?TestCrdtResponseCodec(antidote_crdt_bcounter, counter, 42),
+  ?TestCrdtResponseCodec(antidote_crdt_bcounter, bcounter, 42),
 
   % lww-register
   ?TestCrdtOperationCodec(antidote_crdt_lwwreg, assign, <<"hello">>),

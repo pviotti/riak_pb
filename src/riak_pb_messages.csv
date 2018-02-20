@@ -70,6 +70,8 @@
 126,ApbReadObjectsResp,antidote
 127,ApbCommitResp,antidote
 128,ApbStaticReadObjectsResp,antidote
+129,ApbBCounterUpdate,antidote
+130,ApbGetBCounterResp,antidote
 253,RpbAuthReq,riak
 254,RpbAuthResp,riak
 255,RpbStartTls,riak
