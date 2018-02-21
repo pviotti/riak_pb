@@ -114,10 +114,12 @@ decode(_Other, _) ->
 
 encode_error_code(unknown) -> 0;
 encode_error_code(timeout) -> 1;
+encode_error_code(no_permissions) -> 2;
 encode_error_code(_Other) -> 0.
 
 decode_error_code(0) -> unknown;
-decode_error_code(1) -> timeout.
+decode_error_code(1) -> timeout;
+decode_error_code(2) -> no_permissions.
 
 
 
@@ -398,8 +400,24 @@ encode_read_object_resp(antidote_crdt_counter, Val) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};
 encode_read_object_resp(antidote_crdt_fat_counter, Val) ->
     #apbreadobjectresp{counter=#apbgetcounterresp{value=Val}};    
-encode_read_object_resp(antidote_crdt_bcounter, Val) ->
-    #apbreadobjectresp{bcounter=#apbgetcounterresp{value=Val}};
+encode_read_object_resp(antidote_crdt_bcounter, {P, D}) ->
+    % e.g. {[{{r1,r1},10}],[{{r2,r2},5}]}
+    TotalIncrements = orddict:fold(
+                        fun
+                            ({K, K}, V, Acc) ->
+                                V + Acc;
+                            (_, _, Acc) ->
+                                Acc
+                        end, 0, P),
+    TotalDecrements = orddict:fold(
+                        fun
+                            (_, V, Acc) ->
+                                V + Acc
+                        end, 0, D),
+    Val = TotalIncrements - TotalDecrements,
+    #apbreadobjectresp{bcounter=#apbgetbcounterresp{value=Val}};
+encode_read_object_resp(antidote_crdt_bcounter, Val) when is_integer(Val) ->
+    #apbreadobjectresp{bcounter=#apbgetbcounterresp{value=Val}};
 encode_read_object_resp(antidote_crdt_orset, Val) ->
     #apbreadobjectresp{set=#apbgetsetresp{value=Val}};
 encode_read_object_resp(antidote_crdt_set_rw, Val) ->
@@ -420,7 +438,7 @@ encode_read_object_resp(antidote_crdt_flag_dw, Val) ->
 % TODO why does this use counter instead of antidote_crdt_counter etc.?
 decode_read_object_resp(#apbreadobjectresp{counter = #apbgetcounterresp{value = Val}}) ->
     {counter, Val};
-decode_read_object_resp(#apbreadobjectresp{bcounter = #apbgetcounterresp{value = Val}}) ->
+decode_read_object_resp(#apbreadobjectresp{bcounter = #apbgetbcounterresp{value = Val}}) ->
     {bcounter, Val};
 decode_read_object_resp(#apbreadobjectresp{set = #apbgetsetresp{value = Val}}) ->
     {set, Val};
@@ -484,16 +502,16 @@ decode_counter_update(Update) ->
 
 % bounded counter updates
 
-encode_bcounter_update({increment, Amount}) ->
-  #apbbcounterupdate{inc = Amount};
-encode_bcounter_update({decrement, Amount}) ->
-  #apbbcounterupdate{dec = Amount}.
+encode_bcounter_update({increment, {Amount, Id}}) ->
+  #apbbcounterupdate{inc = Amount, id = Id};
+encode_bcounter_update({decrement, {Amount, Id}}) ->
+  #apbbcounterupdate{dec = Amount, id = Id}.
 
 
-decode_bcounter_update(#apbbcounterupdate{inc=Value}) when is_integer(Value) ->
-  {increment, Value};
-decode_bcounter_update(#apbbcounterupdate{dec=Value}) when is_integer(Value) ->
-  {decrement, Value}.
+decode_bcounter_update(#apbbcounterupdate{inc=Value, id=Id}) when is_integer(Value) ->
+  {increment, {Value, Id}};
+decode_bcounter_update(#apbbcounterupdate{dec=Value, id=Id}) when is_integer(Value) ->
+  {decrement, {Value, Id}}.
 
 
 % register updates
@@ -713,8 +731,8 @@ crdt_encode_decode_test() ->
   ?TestCrdtResponseCodec(antidote_crdt_counter, counter, 42),
   
   % Bounded counter
-  ?TestCrdtOperationCodec(antidote_crdt_bcounter, increment, 1),
-  ?TestCrdtResponseCodec(antidote_crdt_bcounter, bcounter, 42),
+  ?TestCrdtOperationCodec(antidote_crdt_bcounter, increment, {1, mydc}),
+  ?TestCrdtResponseCodec(antidote_crdt_bcounter, bcounter, 5), % {[{{r1,r1},10}],[{{r2,r2},5}]}
 
   % lww-register
   ?TestCrdtOperationCodec(antidote_crdt_lwwreg, assign, <<"hello">>),
